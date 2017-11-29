@@ -5,7 +5,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.example.user.sensor.MainActivity">
+    tools:context="com.example.user.sensor.MainActivity"
+    android:background="@color/colorBackground">
 
     <android.support.design.widget.FloatingActionButton
         android:id="@+id/mypbs"
@@ -21,17 +22,17 @@
         tools:ignore="OnClick" />
 
     <ListView
-        android:id="@android:id/list"
+        android:id="@+id/list_view_device"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"/>
 
-        <TextView
-            android:id="@+id/empty_view"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:text="@string/empty_view_title_text"
-            android:gravity="center"/>
+    <TextView
+        android:id="@+id/text_view_empty_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:text="@string/empty_view_title_text"
+        android:gravity="center"/>
 
 
 

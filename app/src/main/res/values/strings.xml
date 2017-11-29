@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Sensor</string>
     <string name="empty_view_title_text">data is empty</string>
-    <string name="dialog_cancel">cancel</string>
+    <string name="dialog_cancel">Cancel</string>
     <string name="dialog_submit">submit</string>
+    <string name="image_description_status_device">Show Device Status ON or OFF</string>
 </resources>

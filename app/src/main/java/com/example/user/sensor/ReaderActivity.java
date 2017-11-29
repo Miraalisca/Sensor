@@ -12,7 +12,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.ImageView;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -30,18 +29,10 @@ import static android.Manifest.permission.CAMERA;
 public class ReaderActivity extends AppCompatActivity implements ZXingScannerView.ResultHandler {
     public static final int REQUEST_CAMERA = 1;
     public ZXingScannerView scannerView;
-    private FirebaseDatabase mFirebaseDatabase;
-    private FirebaseUser curentUser;
-    ImageView image;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        mFirebaseDatabase = FirebaseDatabase.getInstance();
-
-        FirebaseAuth firebaseAuth = FirebaseAuth.getInstance();
-        curentUser = firebaseAuth.getCurrentUser();
 
         scannerView = new ZXingScannerView(this);
         setContentView(scannerView);
@@ -168,7 +159,9 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
     }
 
     private void saveToDatabase(String idDevice, String deviceName){
-        FirebaseDatabase.getInstance().getReference().child(curentUser.getUid()).child(idDevice).child("deviceName").setValue(deviceName);
+        FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        assert firebaseUser != null;
+        FirebaseDatabase.getInstance().getReference().child(firebaseUser.getUid()).child(idDevice).child("deviceName").setValue(deviceName);
         finish();
     }
 }
