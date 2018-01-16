@@ -6,4 +6,6 @@
     <color name="colorWhite">#ffffff</color>
     <color name="colorYellow">#ceca07</color>
     <color name="colorBackground">#fffadd</color>
+    <color name="colorChart1">#f99c93</color>
+    <color name="colorChart2">#70eaff</color>
 </resources>

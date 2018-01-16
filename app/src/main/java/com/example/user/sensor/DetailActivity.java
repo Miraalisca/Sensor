@@ -1,16 +1,77 @@
 package com.example.user.sensor;
 
 import android.content.Intent;
+import android.graphics.DashPathEffect;
+import android.os.CountDownTimer;
+import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.MotionEvent;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.CompoundButton;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
 
-public class DetailActivity extends AppCompatActivity {
+import com.example.user.sensor.chart.MyMarkerView;
+import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.components.Legend;
+import com.github.mikephil.charting.components.LimitLine;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.components.YAxis;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.highlight.Highlight;
+import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+import com.github.mikephil.charting.listener.ChartTouchListener;
+import com.github.mikephil.charting.listener.OnChartGestureListener;
+import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
+import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
+
+public class DetailActivity extends AppCompatActivity implements OnChartGestureListener, OnChartValueSelectedListener {
 
     public static final String ARGS_DEVICE_NAME = "device name";
     public static final String ARGS_DEVICE_ID = "device id";
+    private static final String TAG = DetailActivity.class.getSimpleName();
 
-    private TextView textViewDeviceName;
+    private Switch mSwitchStatus;
+    private TextView mTextViewDeviceName;
+    private LineChart mChart;
+    private Button mButtonStartTimer;
+    private Spinner mSpinnerHour;
+    private Spinner mSpinnerMinute;
+    private Spinner mSpinnerScond;
+    private TextView mCountDownView;
+    private LinearLayout mTimePicker;
+
+    private String mDeviceName;
+    private String mDeviceId;
+
+    FirebaseDatabase mFirebaseDatabase;
+    DatabaseReference mDatabaseReference;
+    CountDownTimer mCountDownTimer;
+
+
+    ArrayList<Entry> mValuesAmpere;
+    ArrayList<Entry> mValuesVoltage;
+    LineDataSet mSetAmpere;
+    LineDataSet mSetVoltage;
+
+    private int mHour = 0, mMinute = 0, mScond = 0;
+    private boolean isCountDownFinish = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -18,9 +79,404 @@ public class DetailActivity extends AppCompatActivity {
         setContentView(R.layout.activity_detail);
 
         Intent intent = getIntent();
-        String deviceName = intent.getStringExtra(ARGS_DEVICE_NAME);
+        mDeviceName = intent.getStringExtra(ARGS_DEVICE_NAME);
+        mDeviceId = intent.getStringExtra(ARGS_DEVICE_ID);
 
-        textViewDeviceName = findViewById(R.id.text_view_device_name);
-        textViewDeviceName.setText(deviceName);
+        mSwitchStatus = findViewById(R.id.switch_status);
+        mButtonStartTimer = findViewById(R.id.button_start_timer);
+        mSpinnerHour = findViewById(R.id.spinner_hour);
+        mSpinnerMinute = findViewById(R.id.spinner_minute);
+        mSpinnerScond = findViewById(R.id.spinner_second);
+        mCountDownView = findViewById(R.id.countdown_timer);
+        mTextViewDeviceName = findViewById(R.id.text_view_device_name);
+        mTimePicker = findViewById(R.id.time_picker);
+        mTextViewDeviceName.setText(mDeviceName);
+
+        mFirebaseDatabase = FirebaseDatabase.getInstance();
+        mDatabaseReference = mFirebaseDatabase.getReference();
+        mValuesAmpere = new ArrayList<>();
+        mValuesVoltage = new ArrayList<>();
+
+        mCountDownView.setVisibility(View.GONE);
+
+        setupSpinner();
+
+        mButtonStartTimer.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (isCountDownFinish) {
+                    startTimer();
+                } else {
+                    stopCountDown();
+                }
+            }
+        });
+
+
+        readStatus();
+        setStatus();
+        devineDevice();
+    }
+
+    private void readStatus() {
+        mDatabaseReference.child("device").child(mDeviceId).child("status").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                boolean status = dataSnapshot.getValue(Boolean.class);
+                mSwitchStatus.setChecked(status);
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+    }
+
+    private void setStatus() {
+        mSwitchStatus.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean status) {
+                saveStatusToDatabase(status);
+                if (!status && !isCountDownFinish)
+                    stopCountDown();
+            }
+        });
+    }
+
+    private void saveStatusToDatabase(boolean status) {
+        mDatabaseReference.child("device").child(mDeviceId).child("status").setValue(status);
+    }
+
+    private void setupSpinner() {
+        final String[] arrayHour = {
+                "00", "01", "02", "03", "04", "05", "06", "07", "08", "09",
+                "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
+                "20", "21", "22", "23", "24"
+        };
+
+        final String[] arrayMinuteAndScond = {
+                "00", "01", "02", "03", "04", "05", "06", "07", "08", "09",
+                "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
+                "20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
+                "30", "31", "32", "33", "34", "35", "36", "37", "38", "39",
+                "40", "41", "42", "43", "44", "45", "46", "47", "48", "49",
+                "50", "51", "52", "53", "54", "55", "56", "57", "58", "59",
+                "60"
+        };
+
+        ArrayAdapter<String> adapterHour = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, arrayHour);
+        adapterHour.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mSpinnerHour.setAdapter(adapterHour);
+
+        ArrayAdapter<String> adapterMinuteAndScond = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, arrayMinuteAndScond);
+        adapterMinuteAndScond.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mSpinnerMinute.setAdapter(adapterMinuteAndScond);
+        mSpinnerScond.setAdapter(adapterMinuteAndScond);
+
+
+        mSpinnerHour.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                mHour = i;
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+        mSpinnerMinute.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                mMinute = i;
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+        mSpinnerScond.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                mScond = i;
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+    }
+
+    private void startTimer() {
+        long milisInFuture = ((mHour * 60 * 60) + (mMinute * 60) + mScond) * 1000;
+        if(milisInFuture!=0){
+            setCountDownTimer(milisInFuture);
+
+            startCountDown();
+        }
+    }
+
+    private void setCountDownTimer(long milisInFuture) {
+        mCountDownTimer = new CountDownTimer(milisInFuture, 1000) {
+
+            public void onTick(long millisUntilFinished) {
+                mCountDownView.setText(millisUntilFinished / 1000 + " Second");
+            }
+
+            public void onFinish() {
+                stopCountDown();
+            }
+
+        };
+    }
+
+    private void startCountDown() {
+        mTimePicker.setVisibility(View.GONE);
+        mCountDownView.setVisibility(View.VISIBLE);
+        mButtonStartTimer.setText("Stop");
+        isCountDownFinish = false;
+        saveStatusToDatabase(true);
+        mCountDownTimer.start();
+    }
+
+    private void stopCountDown() {
+        mTimePicker.setVisibility(View.VISIBLE);
+        mCountDownView.setVisibility(View.GONE);
+        mButtonStartTimer.setText("Start");
+        mCountDownTimer.cancel();
+        isCountDownFinish = true;
+        saveStatusToDatabase(false);
+    }
+
+    private void devineDevice() {
+        mChart = findViewById(R.id.line_chart);
+        mChart.setOnChartGestureListener(this);
+        mChart.setOnChartValueSelectedListener(this);
+        mChart.setDrawGridBackground(false);
+
+        mChart.getDescription().setEnabled(false);
+
+        mChart.setTouchEnabled(true);
+
+        mChart.setDragEnabled(true);
+        mChart.setScaleEnabled(true);
+        mChart.setPinchZoom(true);
+
+        MyMarkerView mv = new MyMarkerView(this, R.layout.custom_marker_view);
+        mv.setChartView(mChart); // For bounds control
+        mChart.setMarker(mv); // Set the marker to the chart
+
+        // x-axis limit line
+        LimitLine llXAxis = new LimitLine(10f, "Index 10");
+        llXAxis.setLineWidth(4f);
+        llXAxis.enableDashedLine(10f, 10f, 0f);
+        llXAxis.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_BOTTOM);
+        llXAxis.setTextSize(10f);
+
+        XAxis xAxis = mChart.getXAxis();
+        xAxis.enableGridDashedLine(10f, 10f, 0f);
+
+        YAxis leftAxis = mChart.getAxisLeft();
+        leftAxis.setAxisMaximum(200f);
+        leftAxis.setAxisMinimum(-50f);
+
+        leftAxis.enableGridDashedLine(10f, 10f, 0f);
+        leftAxis.setDrawZeroLine(false);
+
+        leftAxis.setDrawLimitLinesBehindData(true);
+
+        mChart.getAxisRight().setEnabled(false);
+        readAmpere();
+
+        mChart.animateX(2500);
+        Legend l = mChart.getLegend();
+        l.setForm(Legend.LegendForm.LINE);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+    }
+
+    private void readAmpere() {
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+
+        final DatabaseReference myRef = database.getReference();
+        myRef.keepSynced(true);
+        myRef.child("device").child(mDeviceId).child("value").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                mValuesAmpere.clear();
+                int i = 0;
+                for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
+                    int data = userSnapshot.child("ampere").getValue(Integer.class);
+                    Log.i(TAG, "onDataChange: " + data);
+                    final Entry entry = new Entry(i, data);
+                    mValuesAmpere.add(entry);
+                    i++;
+                }
+                readVoltage();
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                // Getting Post failed, log a message
+                Log.w(TAG, "loadPost:onCancelled", databaseError.toException());
+                // ...
+            }
+        });
+    }
+
+    private void readVoltage() {
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+
+        final DatabaseReference myRef = database.getReference();
+        myRef.keepSynced(true);
+
+        myRef.child("device").child(mDeviceId).child("value").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                mValuesVoltage.clear();
+                int i = 0;
+                for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
+                    try {
+                        int data = userSnapshot.child("voltage").getValue(Integer.class);
+                        Log.i(TAG, "onDataChange: " + data);
+                        final Entry entry = new Entry(i, data);
+                        mValuesVoltage.add(entry);
+                        i++;
+                    } catch (NullPointerException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                setData();
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                // Getting Post failed, log a message
+                Log.w(TAG, "loadPost:onCancelled", databaseError.toException());
+                // ...
+            }
+        });
+    }
+
+    private void setData() {
+        if (mChart.getData() != null &&
+                mChart.getData().getDataSetCount() > 0) {
+            mSetAmpere = (LineDataSet) mChart.getData().getDataSetByIndex(0);
+            mSetAmpere.setValues(mValuesAmpere);
+            mSetVoltage = (LineDataSet) mChart.getData().getDataSetByIndex(0);
+            mSetVoltage.setValues(mValuesVoltage);
+
+            mChart.getData().notifyDataChanged();
+            mChart.notifyDataSetChanged();
+        } else {
+            // create a dataset and give it a type
+            mSetAmpere = new LineDataSet(mValuesAmpere, "Ampere");
+            mSetVoltage = new LineDataSet(mValuesVoltage, "Voltage");
+
+            mSetAmpere.setDrawIcons(false);
+            mSetVoltage.setDrawIcons(false);
+
+            int color1 = ResourcesCompat.getColor(getResources(), R.color.colorChart1, null);
+            mSetAmpere.enableDashedHighlightLine(10f, 5f, 0f);
+            mSetAmpere.setColor(color1);
+            mSetAmpere.setCircleColor(color1);
+            mSetAmpere.setLineWidth(1f);
+            mSetAmpere.setCircleRadius(3f);
+            mSetAmpere.setDrawCircleHole(false);
+            mSetAmpere.setValueTextSize(9f);
+            mSetAmpere.setDrawValues(false);
+//            mSetAmpere.setDrawFilled(true);
+            mSetAmpere.setFormLineWidth(1f);
+            mSetAmpere.setFormLineDashEffect(new DashPathEffect(new float[]{10f, 5f}, 0f));
+            mSetAmpere.setFormSize(15.f);
+            mSetAmpere.setFillColor(color1);
+
+            int color2 = ResourcesCompat.getColor(getResources(), R.color.colorChart2, null);
+            mSetVoltage.enableDashedHighlightLine(10f, 5f, 0f);
+            mSetVoltage.setColor(color2);
+            mSetVoltage.setCircleColor(color2);
+            mSetVoltage.setLineWidth(1f);
+            mSetVoltage.setCircleRadius(3f);
+            mSetVoltage.setDrawCircleHole(false);
+            mSetVoltage.setValueTextSize(9f);
+            mSetVoltage.setDrawValues(false);
+//            mSetVoltage.setDrawFilled(true);
+            mSetVoltage.setFormLineWidth(1f);
+            mSetVoltage.setFormLineDashEffect(new DashPathEffect(new float[]{10f, 5f}, 0f));
+            mSetVoltage.setFormSize(15.f);
+            mSetVoltage.setFillColor(color2);
+
+            ArrayList<ILineDataSet> dataSets = new ArrayList<ILineDataSet>();
+            dataSets.add(mSetAmpere);
+            dataSets.add(mSetVoltage);
+
+            LineData data = new LineData(dataSets);
+            mChart.setData(data);
+        }
+    }
+
+    @Override
+    public void onChartGestureStart(MotionEvent me, ChartTouchListener.ChartGesture lastPerformedGesture) {
+        Log.i("Gesture", "START, x: " + me.getX() + ", y: " + me.getY());
+    }
+
+    @Override
+    public void onChartGestureEnd(MotionEvent me, ChartTouchListener.ChartGesture lastPerformedGesture) {
+        Log.i("Gesture", "END, lastGesture: " + lastPerformedGesture);
+
+        // un-highlight values after the gesture is finished and no single-tap
+        if (lastPerformedGesture != ChartTouchListener.ChartGesture.SINGLE_TAP)
+            mChart.highlightValues(null); // or highlightTouch(null) for callback to onNothingSelected(...)
+    }
+
+    @Override
+    public void onChartLongPressed(MotionEvent me) {
+        Log.i("LongPress", "Chart longpressed.");
+    }
+
+    @Override
+    public void onChartDoubleTapped(MotionEvent me) {
+        Log.i("DoubleTap", "Chart double-tapped.");
+    }
+
+    @Override
+    public void onChartSingleTapped(MotionEvent me) {
+        Log.i("SingleTap", "Chart single-tapped.");
+    }
+
+    @Override
+    public void onChartFling(MotionEvent me1, MotionEvent me2, float velocityX, float velocityY) {
+        Log.i("Fling", "Chart flinged. VeloX: " + velocityX + ", VeloY: " + velocityY);
+    }
+
+    @Override
+    public void onChartScale(MotionEvent me, float scaleX, float scaleY) {
+        Log.i("Scale / Zoom", "ScaleX: " + scaleX + ", ScaleY: " + scaleY);
+    }
+
+    @Override
+    public void onChartTranslate(MotionEvent me, float dX, float dY) {
+        Log.i("Translate / Move", "dX: " + dX + ", dY: " + dY);
+    }
+
+    @Override
+    public void onValueSelected(Entry e, Highlight h) {
+        Log.i("Entry selected", e.toString());
+        Log.i("LOWHIGH", "low: " + mChart.getLowestVisibleX() + ", high: " + mChart.getHighestVisibleX());
+        Log.i("MIN MAX", "xmin: " + mChart.getXChartMin() + ", xmax: " + mChart.getXChartMax() + ", ymin: " + mChart.getYChartMin() + ", ymax: " + mChart.getYChartMax());
+    }
+
+    @Override
+    public void onNothingSelected() {
+        Log.i("Nothing selected", "Nothing selected.");
     }
 }

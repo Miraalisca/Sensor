@@ -4,4 +4,7 @@
     <string name="dialog_cancel">Cancel</string>
     <string name="dialog_submit">submit</string>
     <string name="image_description_status_device">Show Device Status ON or OFF</string>
+    <string name="title_start_with_timer">Start With Timer</string>
+    <string name="button_start">Start</string>
+
 </resources>

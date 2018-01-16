@@ -13,6 +13,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
 
+import com.example.user.sensor.model.Device;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.FirebaseDatabase;
@@ -161,7 +162,7 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
     private void saveToDatabase(String idDevice, String deviceName){
         FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         assert firebaseUser != null;
-        FirebaseDatabase.getInstance().getReference().child(firebaseUser.getUid()).child(idDevice).child("deviceName").setValue(deviceName);
+        FirebaseDatabase.getInstance().getReference("user").child(firebaseUser.getUid()).child(idDevice).setValue(deviceName);
         finish();
     }
 }

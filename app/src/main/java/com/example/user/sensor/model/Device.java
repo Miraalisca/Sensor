@@ -10,16 +10,13 @@ public class Device {
     private String deviceName;
     private String deviceId;
     private boolean status;
-    private ArrayList<AmVolData> ampereDatas;
-    private ArrayList<AmVolData> voltageDataas;
 
     public Device() {
     }
 
-    public Device(String deviceName, String deviceId, boolean status) {
+    public Device(String deviceName, String deviceId) {
         this.deviceName = deviceName;
         this.deviceId = deviceId;
-        this.status = status;
     }
 
     public String getDeviceName() {
@@ -34,11 +31,7 @@ public class Device {
         return status;
     }
 
-    public ArrayList<AmVolData> getAmpereDatas() {
-        return ampereDatas;
-    }
-
-    public ArrayList<AmVolData> getVoltageDataas() {
-        return voltageDataas;
+    public void setStatus(boolean status) {
+        this.status = status;
     }
 }
