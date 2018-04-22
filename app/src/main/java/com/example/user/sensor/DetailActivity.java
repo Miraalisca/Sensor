@@ -65,10 +65,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     CountDownTimer mCountDownTimer;
 
 
-    ArrayList<Entry> mValuesAmpere;
-    ArrayList<Entry> mValuesVoltage;
-    LineDataSet mSetAmpere;
-    LineDataSet mSetVoltage;
+    ArrayList<Entry> mValuesKWH;
+    LineDataSet mSetKWH;
 
     private int mHour = 0, mMinute = 0, mScond = 0;
     private boolean isCountDownFinish = true;
@@ -94,8 +92,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
 
         mFirebaseDatabase = FirebaseDatabase.getInstance();
         mDatabaseReference = mFirebaseDatabase.getReference();
-        mValuesAmpere = new ArrayList<>();
-        mValuesVoltage = new ArrayList<>();
+        mValuesKWH = new ArrayList<>();
 
         mCountDownView.setVisibility(View.GONE);
 
@@ -282,8 +279,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         xAxis.enableGridDashedLine(10f, 10f, 0f);
 
         YAxis leftAxis = mChart.getAxisLeft();
-        leftAxis.setAxisMaximum(200f);
-        leftAxis.setAxisMinimum(-50f);
 
         leftAxis.enableGridDashedLine(10f, 10f, 0f);
         leftAxis.setDrawZeroLine(false);
@@ -291,7 +286,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         leftAxis.setDrawLimitLinesBehindData(true);
 
         mChart.getAxisRight().setEnabled(false);
-        readAmpere();
+        readKWH();
 
         mChart.animateX(2500);
         Legend l = mChart.getLegend();
@@ -303,7 +298,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         super.onWindowFocusChanged(hasFocus);
     }
 
-    private void readAmpere() {
+    private void readKWH() {
         FirebaseDatabase database = FirebaseDatabase.getInstance();
 
         final DatabaseReference myRef = database.getReference();
@@ -311,50 +306,23 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         myRef.child("device").child(mDeviceId).child("value").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                mValuesAmpere.clear();
+                mValuesKWH.clear();
                 int i = 0;
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
-                    int data = userSnapshot.child("ampere").getValue(Integer.class);
-                    Log.i(TAG, "onDataChange: " + data);
-                    final Entry entry = new Entry(i, data);
-                    mValuesAmpere.add(entry);
-                    i++;
-                }
-                readVoltage();
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-                // Getting Post failed, log a message
-                Log.w(TAG, "loadPost:onCancelled", databaseError.toException());
-                // ...
-            }
-        });
-    }
-
-    private void readVoltage() {
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-
-        final DatabaseReference myRef = database.getReference();
-        myRef.keepSynced(true);
-
-        myRef.child("device").child(mDeviceId).child("value").addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                mValuesVoltage.clear();
-                int i = 0;
-                for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
-                    try {
-                        int data = userSnapshot.child("voltage").getValue(Integer.class);
-                        Log.i(TAG, "onDataChange: " + data);
-                        final Entry entry = new Entry(i, data);
-                        mValuesVoltage.add(entry);
+                    if(userSnapshot.child("ampere").getValue(Integer.class)!= null &&
+                            userSnapshot.child("voltage").getValue(Integer.class) != null &&
+                            userSnapshot.child("duration").getValue(Integer.class) != null) {
+                        int ampere = userSnapshot.child("ampere").getValue(Integer.class);
+                        int voltage = userSnapshot.child("voltage").getValue(Integer.class);
+                        int duration = userSnapshot.child("duration").getValue(Integer.class);
+//                        float kwh = ((ampere * voltage * duration) / 1000) / 60;
+                        float kwh = ampere * voltage * duration;
+                        Log.i(TAG, "onDataChange: " + ampere + "A, " + voltage + "V, " + duration + "S, " + (ampere*voltage*duration) + "watt");
+                        final Entry entry = new Entry(i, kwh);
+                        mValuesKWH.add(entry);
                         i++;
-                    } catch (NullPointerException e) {
-                        e.printStackTrace();
                     }
                 }
-
                 setData();
             }
 
@@ -370,54 +338,35 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private void setData() {
         if (mChart.getData() != null &&
                 mChart.getData().getDataSetCount() > 0) {
-            mSetAmpere = (LineDataSet) mChart.getData().getDataSetByIndex(0);
-            mSetAmpere.setValues(mValuesAmpere);
-            mSetVoltage = (LineDataSet) mChart.getData().getDataSetByIndex(0);
-            mSetVoltage.setValues(mValuesVoltage);
+            mSetKWH = (LineDataSet) mChart.getData().getDataSetByIndex(0);
+            mSetKWH.setValues(mValuesKWH);
 
             mChart.getData().notifyDataChanged();
             mChart.notifyDataSetChanged();
         } else {
             // create a dataset and give it a type
-            mSetAmpere = new LineDataSet(mValuesAmpere, "Ampere");
-            mSetVoltage = new LineDataSet(mValuesVoltage, "Voltage");
+            mSetKWH = new LineDataSet(mValuesKWH, "watt");
 
-            mSetAmpere.setDrawIcons(false);
-            mSetVoltage.setDrawIcons(false);
+            mSetKWH.setDrawIcons(false);
 
             int color1 = ResourcesCompat.getColor(getResources(), R.color.colorChart1, null);
-            mSetAmpere.enableDashedHighlightLine(10f, 5f, 0f);
-            mSetAmpere.setColor(color1);
-            mSetAmpere.setCircleColor(color1);
-            mSetAmpere.setLineWidth(1f);
-            mSetAmpere.setCircleRadius(3f);
-            mSetAmpere.setDrawCircleHole(false);
-            mSetAmpere.setValueTextSize(9f);
-            mSetAmpere.setDrawValues(false);
-//            mSetAmpere.setDrawFilled(true);
-            mSetAmpere.setFormLineWidth(1f);
-            mSetAmpere.setFormLineDashEffect(new DashPathEffect(new float[]{10f, 5f}, 0f));
-            mSetAmpere.setFormSize(15.f);
-            mSetAmpere.setFillColor(color1);
+            mSetKWH.enableDashedHighlightLine(10f, 5f, 0f);
+            mSetKWH.setColor(color1);
+            mSetKWH.setCircleColor(color1);
+            mSetKWH.setLineWidth(1f);
+            mSetKWH.setCircleRadius(3f);
+            mSetKWH.setDrawCircleHole(false);
+            mSetKWH.setValueTextSize(9f);
+            mSetKWH.setDrawValues(false);
+//            mSetKWH.setDrawFilled(true);
+            mSetKWH.setFormLineWidth(1f);
+            mSetKWH.setFormLineDashEffect(new DashPathEffect(new float[]{10f, 5f}, 0f));
+            mSetKWH.setFormSize(15.f);
+            mSetKWH.setFillColor(color1);
 
-            int color2 = ResourcesCompat.getColor(getResources(), R.color.colorChart2, null);
-            mSetVoltage.enableDashedHighlightLine(10f, 5f, 0f);
-            mSetVoltage.setColor(color2);
-            mSetVoltage.setCircleColor(color2);
-            mSetVoltage.setLineWidth(1f);
-            mSetVoltage.setCircleRadius(3f);
-            mSetVoltage.setDrawCircleHole(false);
-            mSetVoltage.setValueTextSize(9f);
-            mSetVoltage.setDrawValues(false);
-//            mSetVoltage.setDrawFilled(true);
-            mSetVoltage.setFormLineWidth(1f);
-            mSetVoltage.setFormLineDashEffect(new DashPathEffect(new float[]{10f, 5f}, 0f));
-            mSetVoltage.setFormSize(15.f);
-            mSetVoltage.setFillColor(color2);
 
             ArrayList<ILineDataSet> dataSets = new ArrayList<ILineDataSet>();
-            dataSets.add(mSetAmpere);
-            dataSets.add(mSetVoltage);
+            dataSets.add(mSetKWH);
 
             LineData data = new LineData(dataSets);
             mChart.setData(data);
