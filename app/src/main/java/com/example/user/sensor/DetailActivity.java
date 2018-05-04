@@ -1,18 +1,25 @@
 package com.example.user.sensor;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.DashPathEffect;
 import android.os.CountDownTimer;
 import android.support.v4.content.res.ResourcesCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.Switch;
@@ -32,6 +39,8 @@ import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 import com.github.mikephil.charting.listener.ChartTouchListener;
 import com.github.mikephil.charting.listener.OnChartGestureListener;
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -45,6 +54,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
 
     public static final String ARGS_DEVICE_NAME = "device name";
     public static final String ARGS_DEVICE_ID = "device id";
+    public static final String ARGS_PUSH_ID = "push id";
     private static final String TAG = DetailActivity.class.getSimpleName();
 
     private Switch mSwitchStatus;
@@ -59,8 +69,11 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
 
     private String mDeviceName;
     private String mDeviceId;
+    private String mPushKey;
+    private String mUserID;
 
     FirebaseDatabase mFirebaseDatabase;
+    private FirebaseUser mCurrentUser;
     DatabaseReference mDatabaseReference;
     CountDownTimer mCountDownTimer;
 
@@ -79,6 +92,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         Intent intent = getIntent();
         mDeviceName = intent.getStringExtra(ARGS_DEVICE_NAME);
         mDeviceId = intent.getStringExtra(ARGS_DEVICE_ID);
+        mPushKey = intent.getStringExtra(ARGS_PUSH_ID);
 
         mSwitchStatus = findViewById(R.id.switch_status);
         mButtonStartTimer = findViewById(R.id.button_start_timer);
@@ -92,6 +106,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
 
         mFirebaseDatabase = FirebaseDatabase.getInstance();
         mDatabaseReference = mFirebaseDatabase.getReference();
+        mCurrentUser = FirebaseAuth.getInstance().getCurrentUser();
         mValuesKWH = new ArrayList<>();
 
         mCountDownView.setVisibility(View.GONE);
@@ -119,8 +134,12 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mDatabaseReference.child("device").child(mDeviceId).child("status").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                boolean status = dataSnapshot.getValue(Boolean.class);
-                mSwitchStatus.setChecked(status);
+                try {
+                    boolean status = dataSnapshot.getValue(Boolean.class);
+                    mSwitchStatus.setChecked(status);
+                } catch (NullPointerException e){
+
+                }
             }
 
             @Override
@@ -370,6 +389,62 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
 
             LineData data = new LineData(dataSets);
             mChart.setData(data);
+        }
+    }
+
+    private void showDialog(){
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = this.getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_manage_device, null);
+        final EditText editTextDeviceName = dialogView.findViewById(R.id.input_device_name);
+        EditText editTextDeviceId = dialogView.findViewById(R.id.input_device_id);
+        editTextDeviceName.setText(mDeviceName);
+        editTextDeviceId.setText(mDeviceId);
+        editTextDeviceId.setFocusable(false);
+        editTextDeviceId.setClickable(false );
+        dialogBuilder.setPositiveButton(getText(R.string.dialog_edit), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        String deviceName = editTextDeviceName.getText().toString().trim();
+                        mDatabaseReference.child("device").child(mDeviceId).child("name").setValue(deviceName);
+                        mTextViewDeviceName.setText(deviceName);
+                    }
+                })
+                .setNegativeButton(getText(R.string.dialog_delete), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        mDatabaseReference.child("device").child(mDeviceId).removeValue();
+                        mDatabaseReference.child("user").child(mCurrentUser.getUid()).child(mPushKey).removeValue();
+                        finish();
+                    }
+                })
+                .setNeutralButton(getText(R.string.dialog_cancel), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                    }
+                });
+        dialogBuilder.setView(dialogView);
+        AlertDialog alertDialog = dialogBuilder.create();
+        alertDialog.show();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.detail_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.menu_edit:
+                showDialog();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
         }
     }
 

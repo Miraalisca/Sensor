@@ -31,7 +31,6 @@ import com.google.firebase.database.FirebaseDatabase;
 
 public class LoginActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener{
-    String myString ="This is my first Toast";
     private static final int RC_SIGN_IN = 9001;
     private static final String TAG =  "LoginActivity";
     private GoogleApiClient mGoogleApiClient;

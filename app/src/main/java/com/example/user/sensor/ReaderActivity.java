@@ -10,6 +10,9 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 
@@ -129,6 +132,7 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
                 .create()
                 .show();
     }
+
     @Override
     public void handleResult(Result result) {
         final String idDevice = result.getText();
@@ -162,7 +166,52 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
     private void saveToDatabase(String idDevice, String deviceName){
         FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
         assert firebaseUser != null;
-        FirebaseDatabase.getInstance().getReference("user").child(firebaseUser.getUid()).child(idDevice).setValue(deviceName);
+        FirebaseDatabase.getInstance().getReference("user").child(firebaseUser.getUid()).push().setValue(idDevice);
+        FirebaseDatabase.getInstance().getReference("device").child(idDevice).child("name").setValue(deviceName);
         finish();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.reader_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.menu_add:
+                showDialog();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    private void showDialog(){
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = this.getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_manage_device, null);
+        final EditText editTextDeviceName = dialogView.findViewById(R.id.input_device_name);
+        final EditText editTextDeviceId = dialogView.findViewById(R.id.input_device_id);
+        dialogBuilder.setPositiveButton(getText(R.string.dialog_submit), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        String deviceName = editTextDeviceName.getText().toString().trim();
+                        String deviceID = editTextDeviceId.getText().toString().trim();
+
+                        saveToDatabase(deviceID, deviceName);
+                    }
+                })
+                .setNegativeButton(getText(R.string.dialog_cancel), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                    }
+                });
+        dialogBuilder.setView(dialogView);
+        AlertDialog alertDialog = dialogBuilder.create();
+        alertDialog.show();
     }
 }

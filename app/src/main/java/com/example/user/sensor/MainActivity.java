@@ -53,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent(MainActivity.this, DetailActivity.class);
                 intent.putExtra(DetailActivity.ARGS_DEVICE_NAME, devices.get(i).getDeviceName());
                 intent.putExtra(DetailActivity.ARGS_DEVICE_ID, devices.get(i).getDeviceId());
+                intent.putExtra(DetailActivity.ARGS_PUSH_ID, devices.get(i).getPushKey());
                 startActivity(intent);
             }
         });
@@ -74,17 +75,20 @@ public class MainActivity extends AppCompatActivity {
             public void onDataChange(DataSnapshot dataSnapshot) {
                 devicesData.clear();
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
-                    String deviceName = userSnapshot.getValue(String.class);
-                    final String deviceId = userSnapshot.getKey();
+                    final String deviceId = userSnapshot.getValue(String.class);
+                    final String pushKey = userSnapshot.getKey();
 
-                    final Device device = new Device(deviceName, deviceId);
+                    final Device device = new Device(pushKey, deviceId);
                     devicesData.add(device);
 
                     myRef.child("device").child(deviceId).addValueEventListener(new ValueEventListener() {
                         @Override
                         public void onDataChange(DataSnapshot dataSnapshot) {
                             try {
+                                String deviceName = dataSnapshot.child("name").getValue(String.class);
                                 boolean status = dataSnapshot.child("status").getValue(boolean.class);
+
+                                device.setDeviceName(deviceName);
                                 device.setStatus(status);
                             } catch (NullPointerException e){
                                 myRef.child("device").child(deviceId).child("status").setValue(false);

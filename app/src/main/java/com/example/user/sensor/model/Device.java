@@ -7,6 +7,7 @@ import java.util.ArrayList;
  */
 
 public class Device {
+    private String pushKey;
     private String deviceName;
     private String deviceId;
     private boolean status;
@@ -14,8 +15,8 @@ public class Device {
     public Device() {
     }
 
-    public Device(String deviceName, String deviceId) {
-        this.deviceName = deviceName;
+    public Device(String pushKey, String deviceId) {
+        this.pushKey = pushKey;
         this.deviceId = deviceId;
     }
 
@@ -31,7 +32,15 @@ public class Device {
         return status;
     }
 
+    public void setDeviceName(String deviceName) {
+        this.deviceName = deviceName;
+    }
+
     public void setStatus(boolean status) {
         this.status = status;
+    }
+
+    public String getPushKey() {
+        return pushKey;
     }
 }
