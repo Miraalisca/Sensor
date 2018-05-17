@@ -139,6 +139,7 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
         showDialogInputName(idDevice);
     }
 
+    private int session = 0;
     private void showDialogInputName(final String idDevice){
         AlertDialog.Builder builder = new AlertDialog.Builder(ReaderActivity.this);
         // Get the layout inflater
@@ -146,12 +147,15 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
 
         View viewDialog = inflater.inflate(R.layout.dialog_name, null);
         final EditText editTextName = viewDialog.findViewById(R.id.edit_text_name);
+        builder.setTitle(idDevice);
         builder.setView(viewDialog)
                 .setPositiveButton(R.string.dialog_submit, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int id) {
                         String deviceName = editTextName.getText().toString().trim();
                         saveToDatabase(idDevice, deviceName);
+                        showDialogInputName(String.valueOf(Long.valueOf(idDevice) + 1));
+                        session++;
                     }
                 })
                 .setNegativeButton(R.string.dialog_cancel, new DialogInterface.OnClickListener() {
@@ -168,7 +172,9 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
         assert firebaseUser != null;
         FirebaseDatabase.getInstance().getReference("user").child(firebaseUser.getUid()).push().setValue(idDevice);
         FirebaseDatabase.getInstance().getReference("device").child(idDevice).child("name").setValue(deviceName);
-        finish();
+        if(session>2) {
+            finish();
+        }
     }
 
     @Override

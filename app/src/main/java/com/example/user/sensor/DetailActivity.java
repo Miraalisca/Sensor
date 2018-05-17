@@ -1,9 +1,11 @@
 package com.example.user.sensor;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.DashPathEffect;
-import android.os.CountDownTimer;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -48,7 +50,6 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
-import java.util.concurrent.TimeUnit;
 
 public class DetailActivity extends AppCompatActivity implements OnChartGestureListener, OnChartValueSelectedListener {
 
@@ -70,12 +71,10 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private String mDeviceName;
     private String mDeviceId;
     private String mPushKey;
-    private String mUserID;
 
     FirebaseDatabase mFirebaseDatabase;
     private FirebaseUser mCurrentUser;
     DatabaseReference mDatabaseReference;
-    CountDownTimer mCountDownTimer;
 
 
     ArrayList<Entry> mValuesKWH;
@@ -119,11 +118,12 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
                 if (isCountDownFinish) {
                     startTimer();
                 } else {
-                    stopCountDown();
+                    setupUICountDownStop();
+                    saveStatusToDatabase(false);
+                    stopService(new Intent(DetailActivity.this, BroadcastService.class));
                 }
             }
         });
-
 
         readStatus();
         setStatus();
@@ -154,8 +154,10 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean status) {
                 saveStatusToDatabase(status);
-                if (!status && !isCountDownFinish)
-                    stopCountDown();
+                if (!status && !isCountDownFinish) {
+                    setupUICountDownStop();
+                    saveStatusToDatabase(false);
+                }
             }
         });
     }
@@ -231,42 +233,29 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private void startTimer() {
         long milisInFuture = ((mHour * 60 * 60) + (mMinute * 60) + mScond) * 1000;
         if(milisInFuture!=0){
-            setCountDownTimer(milisInFuture);
+            setupUICountDownRun();
+            saveStatusToDatabase(true);
 
-            startCountDown();
+            Intent serviceIntent = new Intent(this, BroadcastService.class);
+            serviceIntent.putExtra(BroadcastService.ARG_ID, mPushKey);
+            serviceIntent.putExtra(BroadcastService.ARG_TIMER, milisInFuture);
+            startService(serviceIntent);
+            Log.i(TAG, "Started service");
         }
     }
 
-    private void setCountDownTimer(long milisInFuture) {
-        mCountDownTimer = new CountDownTimer(milisInFuture, 1000) {
-
-            public void onTick(long millisUntilFinished) {
-                mCountDownView.setText(millisUntilFinished / 1000 + " Second");
-            }
-
-            public void onFinish() {
-                stopCountDown();
-            }
-
-        };
-    }
-
-    private void startCountDown() {
+    private void setupUICountDownRun() {
         mTimePicker.setVisibility(View.GONE);
         mCountDownView.setVisibility(View.VISIBLE);
         mButtonStartTimer.setText("Stop");
         isCountDownFinish = false;
-        saveStatusToDatabase(true);
-        mCountDownTimer.start();
     }
 
-    private void stopCountDown() {
+    private void setupUICountDownStop() {
         mTimePicker.setVisibility(View.VISIBLE);
         mCountDownView.setVisibility(View.GONE);
         mButtonStartTimer.setText("Start");
-        mCountDownTimer.cancel();
         isCountDownFinish = true;
-        saveStatusToDatabase(false);
     }
 
     private void devineDevice() {
@@ -427,6 +416,58 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         dialogBuilder.setView(dialogView);
         AlertDialog alertDialog = dialogBuilder.create();
         alertDialog.show();
+    }
+
+    private BroadcastReceiver br = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            updateGUI(intent); // or whatever method used to update your GUI fields
+        }
+    };
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        registerReceiver(br, new IntentFilter(BroadcastService.COUNTDOWN_BR + mPushKey));
+        Log.i(TAG, "Registered broacast receiver");
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+//        unregisterReceiver(br);
+//        Log.i(TAG, "Unregistered broacast receiver");
+    }
+
+    @Override
+    public void onStop() {
+        try {
+            unregisterReceiver(br);
+        } catch (Exception e) {
+            // Receiver was probably already stopped in onPause()
+        }
+        super.onStop();
+    }
+    @Override
+    public void onDestroy() {
+//        stopService(new Intent(this, BroadcastService.class));
+//        Log.i(TAG, "Stopped service");
+        super.onDestroy();
+    }
+
+    private void updateGUI(Intent intent) {
+        if (intent.getExtras() != null) {
+            setupUICountDownRun();
+            long millisUntilFinished = intent.getLongExtra("countdown", 0);
+            mCountDownView.setText(String.valueOf(millisUntilFinished/1000));
+            if(millisUntilFinished/1000 == 1){
+                setupUICountDownStop();
+                saveStatusToDatabase(false);
+            }
+        } else {
+            setupUICountDownStop();
+            saveStatusToDatabase(false);
+        }
     }
 
     @Override
