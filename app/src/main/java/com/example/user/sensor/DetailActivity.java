@@ -10,6 +10,7 @@ import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.CardView;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -22,6 +23,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.Switch;
@@ -66,6 +68,9 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private Spinner mSpinnerMinute;
     private Spinner mSpinnerScond;
     private TextView mCountDownView;
+    private TextView mMessageView;
+    private ImageView mCloseButton;
+    private CardView mMassageLayout;
     private LinearLayout mTimePicker;
 
     private String mDeviceName;
@@ -102,6 +107,9 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mTextViewDeviceName = findViewById(R.id.text_view_device_name);
         mTimePicker = findViewById(R.id.time_picker);
         mTextViewDeviceName.setText(mDeviceName);
+        mCloseButton = findViewById(R.id.button_close);
+        mMassageLayout = findViewById(R.id.layout_massage);
+        mMessageView = findViewById(R.id.view_massage);
 
         mFirebaseDatabase = FirebaseDatabase.getInstance();
         mDatabaseReference = mFirebaseDatabase.getReference();
@@ -127,6 +135,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
 
         readStatus();
         setStatus();
+        setMassage();
         devineDevice();
     }
 
@@ -145,6 +154,32 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
             @Override
             public void onCancelled(DatabaseError databaseError) {
 
+            }
+        });
+    }
+
+    private void setMassage() {
+        mDatabaseReference.child("device").child(mDeviceId).child("massage").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if(dataSnapshot.exists()) {
+                    mMassageLayout.setVisibility(View.VISIBLE);
+                    mMessageView.setText(dataSnapshot.getValue(String.class));
+                } else {
+                    mMassageLayout.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+        mCloseButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mMassageLayout.setVisibility(View.GONE);
             }
         });
     }
