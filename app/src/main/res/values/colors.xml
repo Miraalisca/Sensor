@@ -4,7 +4,8 @@
     <color name="colorPrimaryDark">#017581</color>
     <color name="colorAccent">#FF4081</color>
     <color name="colorWhite">#ffffff</color>
-    <color name="colorYellow">#ceca07</color>
+    <color name="colorLampOn">#ceca07</color>
+    <color name="colorLampOff">#d4d4d4</color>
     <color name="colorBackground">#fffadd</color>
     <color name="colorChart1">#f99c93</color>
     <color name="colorChart2">#70eaff</color>

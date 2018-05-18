@@ -21,8 +21,11 @@ import java.util.List;
  */
 
 public class DeviceListAdapter extends ArrayAdapter<Device> {
+    private Context context;
+
     public DeviceListAdapter(@NonNull Context context, @NonNull ArrayList<Device> objects) {
         super(context, 0, objects);
+        this.context = context;
     }
 
     @NonNull
@@ -42,9 +45,9 @@ public class DeviceListAdapter extends ArrayAdapter<Device> {
 
         ImageView status = view.findViewById(R.id.image_view_status);
         if(current.isStatus()){
-            status.setVisibility(View.VISIBLE);
+            status.setColorFilter(context.getResources().getColor(R.color.colorLampOn));
         } else {
-            status.setVisibility(View.GONE);
+            status.setColorFilter(context.getResources().getColor(R.color.colorLampOff));
         }
 
         return view;

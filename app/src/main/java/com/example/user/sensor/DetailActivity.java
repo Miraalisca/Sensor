@@ -136,7 +136,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         readStatus();
         setStatus();
         setMassage();
-        devineDevice();
+        defineChart();
     }
 
     private void readStatus() {
@@ -293,7 +293,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         isCountDownFinish = true;
     }
 
-    private void devineDevice() {
+    private void defineChart() {
         mChart = findViewById(R.id.line_chart);
         mChart.setOnChartGestureListener(this);
         mChart.setOnChartValueSelectedListener(this);
@@ -325,6 +325,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
 
         leftAxis.enableGridDashedLine(10f, 10f, 0f);
         leftAxis.setDrawZeroLine(false);
+        leftAxis.setAxisMinimum(0);
 
         leftAxis.setDrawLimitLinesBehindData(true);
 
@@ -388,7 +389,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
             mChart.notifyDataSetChanged();
         } else {
             // create a dataset and give it a type
-            mSetKWH = new LineDataSet(mValuesKWH, "watt");
+            mSetKWH = new LineDataSet(mValuesKWH, "KWH");
 
             mSetKWH.setDrawIcons(false);
 
@@ -419,13 +420,9 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private void showDialog(){
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
         LayoutInflater inflater = this.getLayoutInflater();
-        View dialogView = inflater.inflate(R.layout.dialog_manage_device, null);
-        final EditText editTextDeviceName = dialogView.findViewById(R.id.input_device_name);
-        EditText editTextDeviceId = dialogView.findViewById(R.id.input_device_id);
+        View dialogView = inflater.inflate(R.layout.dialog_name, null);
+        final EditText editTextDeviceName = dialogView.findViewById(R.id.edit_text_name);
         editTextDeviceName.setText(mDeviceName);
-        editTextDeviceId.setText(mDeviceId);
-        editTextDeviceId.setFocusable(false);
-        editTextDeviceId.setClickable(false );
         dialogBuilder.setPositiveButton(getText(R.string.dialog_edit), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
@@ -483,6 +480,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         }
         super.onStop();
     }
+
     @Override
     public void onDestroy() {
 //        stopService(new Intent(this, BroadcastService.class));
@@ -490,11 +488,17 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         super.onDestroy();
     }
 
+    int hour = 0;
+    int minute = 0;
+    int second = 0;
     private void updateGUI(Intent intent) {
         if (intent.getExtras() != null) {
             setupUICountDownRun();
             long millisUntilFinished = intent.getLongExtra("countdown", 0);
-            mCountDownView.setText(String.valueOf(millisUntilFinished/1000));
+            hour = (int) (millisUntilFinished/1000/3600);
+            minute = (int) (millisUntilFinished/1000%3600/60);
+            second = (int) (millisUntilFinished/1000%3600%60);
+            mCountDownView.setText(String.format("%02d", hour) + ":" + String.format("%02d", minute) + ":" +String.format("%02d", second));
             if(millisUntilFinished/1000 == 1){
                 setupUICountDownStop();
                 saveStatusToDatabase(false);
