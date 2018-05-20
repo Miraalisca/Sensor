@@ -59,12 +59,18 @@
                     android:text="@string/title_start_with_timer" />
 
                 <TextView
-                    android:id="@+id/countdown_timer"
+                    android:id="@+id/start_time"
                     android:layout_width="match_parent"
                     android:layout_height="45dp"
                     android:gravity="center"
-                    android:textSize="20sp"
-                    android:text="00:00:00"/>
+                    android:textSize="20sp"/>
+
+                <TextView
+                    android:id="@+id/finish_time"
+                    android:layout_width="match_parent"
+                    android:layout_height="45dp"
+                    android:gravity="center"
+                    android:textSize="20sp"/>
 
                 <Button
                     android:id="@+id/button_manage_timer"

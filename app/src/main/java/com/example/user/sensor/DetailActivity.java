@@ -1,7 +1,10 @@
 package com.example.user.sensor;
 
+import android.app.AlarmManager;
 import android.app.DatePickerDialog;
+import android.app.PendingIntent;
 import android.app.TimePickerDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
@@ -54,8 +57,12 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 
 public class DetailActivity extends AppCompatActivity implements OnChartGestureListener, OnChartValueSelectedListener {
 
@@ -72,6 +79,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private Spinner mSpinnerMinute;
     private Spinner mSpinnerScond;
     private TextView mMessageView;
+    private TextView mStartTimeView;
+    private TextView mFinishTimeView;
     private ImageView mCloseButton;
     private CardView mMassageLayout;
     private EditText mEditTextStartDate;
@@ -85,6 +94,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private String mDeviceName;
     private String mDeviceId;
     private String mPushKey;
+    private Boolean mIsUseDuration = false;
+    private Boolean mIsInSetup = false;
 
     FirebaseDatabase mFirebaseDatabase;
     private FirebaseUser mCurrentUser;
@@ -109,6 +120,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mButtonManageTimer = findViewById(R.id.button_manage_timer);
         mTextViewDeviceName = findViewById(R.id.text_view_device_name);
         mTextViewDeviceName.setText(mDeviceName);
+        mStartTimeView = findViewById(R.id.start_time);
+        mFinishTimeView = findViewById(R.id.finish_time);
         mCloseButton = findViewById(R.id.button_close);
         mMassageLayout = findViewById(R.id.layout_massage);
         mMessageView = findViewById(R.id.view_massage);
@@ -121,14 +134,11 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mButtonManageTimer.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                showDialogSetupTimer();
-//                if (isCountDownFinish) {
-//                    startTimer();
-//                } else {
-//                    setupUICountDownStop();
-//                    saveStatusToDatabase(false);
-//                    stopService(new Intent(DetailActivity.this, BroadcastService.class));
-//                }
+                if(mIsInSetup) {
+                    resetAllTimer();
+                } else {
+                    showDialogSetupTimer();
+                }
             }
         });
 
@@ -136,6 +146,11 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         setStatus();
         setMassage();
         defineChart();
+        readStartAndFinishTimer();
+    }
+
+    private void resetAllTimer() {
+
     }
 
     private void readStatus() {
@@ -282,6 +297,49 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         });
     }
 
+    private void readStartAndFinishTimer(){
+        mDatabaseReference.child("device").child("130520180002").child("startTime").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if(dataSnapshot.exists()){
+                    if(dataSnapshot.getValue(Long.class)!=0) {
+                        mStartTimeView.setVisibility(View.VISIBLE);
+                        mStartTimeView.setText(getTime(dataSnapshot.getValue(Long.class)));
+                    } else {
+                        mStartTimeView.setVisibility(View.GONE);
+                    }
+                } else {
+                    mStartTimeView.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+        mDatabaseReference.child("device").child("130520180002").child("finishTime").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if(dataSnapshot.exists()){
+                    if(dataSnapshot.getValue(Long.class)!=0) {
+                        mFinishTimeView.setVisibility(View.VISIBLE);
+                        mFinishTimeView.setText(getTime(dataSnapshot.getValue(Long.class)));
+                    } else {
+                        mFinishTimeView.setVisibility(View.GONE);
+                    }
+                } else {
+                    mFinishTimeView.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+    }
+
     private void setData() {
         if (mChart.getData() != null &&
                 mChart.getData().getDataSetCount() > 0) {
@@ -371,7 +429,15 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         dialogBuilder.setPositiveButton(getText(R.string.dialog_start), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-
+                long startTime = getUnixTimeStamp(mEditTextStartDate.getText().toString() + ", " + mEditTextStartTime.getText().toString());
+                long finishTime;
+                if(mIsUseDuration) {
+                    finishTime = startTime + mHour*3600 + mMinute*60 + mScond;
+                } else {
+                    finishTime = getUnixTimeStamp(mEditTextFinishDate.getText().toString() + ", " + mEditTextFinishTime.getText().toString());
+                }
+                saveTimeSetupToDatabase(startTime, finishTime);
+                startAlarm(startTime, finishTime);
             }
         })
                 .setNegativeButton(getText(R.string.dialog_cancel), new DialogInterface.OnClickListener() {
@@ -383,6 +449,11 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         dialogBuilder.setView(dialogView);
         AlertDialog alertDialog = dialogBuilder.create();
         alertDialog.show();
+    }
+
+    private void saveTimeSetupToDatabase(long startTime, long finishTime) {
+        mDatabaseReference.child("device").child(mDeviceId).child("startTime").setValue(startTime);
+        mDatabaseReference.child("device").child(mDeviceId).child("finishTime").setValue(finishTime);
     }
 
     private void setupTimePickerListener() {
@@ -479,11 +550,13 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
                     case R.id.radio_setup_with_duration: {
                         mDurationPicker.setVisibility(View.VISIBLE);
                         mTimePicker.setVisibility(View.GONE);
+                        mIsUseDuration = true;
                         break;
                     }
                     case R.id.radio_setup_with_timer: {
                         mDurationPicker.setVisibility(View.GONE);
                         mTimePicker.setVisibility(View.VISIBLE);
+                        mIsUseDuration = false;
                         break;
                     }
                 }
@@ -609,5 +682,44 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     @Override
     public void onNothingSelected() {
         Log.i("Nothing selected", "Nothing selected.");
+    }
+
+    private void startAlarm(long timeStart, long timeFinish) {
+        AlarmManager manager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+
+        Intent startIntent = new Intent(DetailActivity.this, AlarmReceiver.class);
+        startIntent.putExtra("title", mDeviceName);
+        startIntent.putExtra("content", true);
+        startIntent.putExtra("device_id", mDeviceId);
+        PendingIntent startPendingIntent = PendingIntent.getBroadcast(DetailActivity.this, 0, startIntent, 0);
+
+        Intent finishIntent = new Intent(DetailActivity.this, AlarmReceiver.class);
+        finishIntent.putExtra("title", mDeviceName);
+        finishIntent.putExtra("content", false);
+        finishIntent.putExtra("device_id", mDeviceId);
+        PendingIntent finishPendingIntent = PendingIntent.getBroadcast(DetailActivity.this, 0, finishIntent, 0);
+
+        manager.set(AlarmManager.RTC_WAKEUP, timeStart, startPendingIntent);
+        manager.set(AlarmManager.RTC_WAKEUP, timeFinish, finishPendingIntent);
+    }
+
+    private long getUnixTimeStamp(String time) {
+        Log.i(TAG, "getUnixTimeStamp: " + time);
+        try {
+            Date date = null;
+            DateFormat formatter = new SimpleDateFormat("dd MMMMM yyyy, HH:mm");
+            date = formatter.parse(time);
+            Log.i(TAG, "getUnixTimeStamp: " + date.getTime());
+            return date.getTime()/1000;
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    private String getTime(long unixTimeStamp){
+        Date date = new Date(unixTimeStamp*1000);
+        String dateInText = new SimpleDateFormat("dd MMM yyyy, HH:mm").format(date);
+        return dateInText;
     }
 }
