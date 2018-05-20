@@ -2,17 +2,14 @@ package com.example.user.sensor;
 
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.graphics.DashPathEffect;
+import android.os.Bundle;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.support.v7.widget.CardView;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -29,7 +26,6 @@ import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.Spinner;
 import android.widget.Switch;
@@ -75,7 +71,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private Spinner mSpinnerHour;
     private Spinner mSpinnerMinute;
     private Spinner mSpinnerScond;
-    private TextView mCountDownView;
     private TextView mMessageView;
     private ImageView mCloseButton;
     private CardView mMassageLayout;
@@ -99,7 +94,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     LineDataSet mSetKWH;
 
     private int mHour = 0, mMinute = 0, mScond = 0;
-    private boolean isCountDownFinish = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -113,7 +107,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
 
         mSwitchStatus = findViewById(R.id.switch_status);
         mButtonManageTimer = findViewById(R.id.button_manage_timer);
-        mCountDownView = findViewById(R.id.countdown_timer);
         mTextViewDeviceName = findViewById(R.id.text_view_device_name);
         mTextViewDeviceName.setText(mDeviceName);
         mCloseButton = findViewById(R.id.button_close);
@@ -153,7 +146,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
                     boolean status = dataSnapshot.getValue(Boolean.class);
                     mSwitchStatus.setChecked(status);
                 } catch (NullPointerException e) {
-
+                    Log.e(TAG, "onDataChange: " + e.getMessage());
                 }
             }
 
@@ -195,40 +188,12 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean status) {
                 saveStatusToDatabase(status);
-                if (!status && !isCountDownFinish) {
-                    setupUICountDownStop();
-                    saveStatusToDatabase(false);
-                }
             }
         });
     }
 
     private void saveStatusToDatabase(boolean status) {
         mDatabaseReference.child("device").child(mDeviceId).child("status").setValue(status);
-    }
-
-    private void startTimer() {
-        long milisInFuture = ((mHour * 60 * 60) + (mMinute * 60) + mScond) * 1000;
-        if (milisInFuture != 0) {
-            setupUICountDownRun();
-            saveStatusToDatabase(true);
-
-            Intent serviceIntent = new Intent(this, BroadcastService.class);
-            serviceIntent.putExtra(BroadcastService.ARG_ID, mPushKey);
-            serviceIntent.putExtra(BroadcastService.ARG_TIMER, milisInFuture);
-            startService(serviceIntent);
-            Log.i(TAG, "Started service");
-        }
-    }
-
-    private void setupUICountDownRun() {
-        mButtonManageTimer.setText("Stop");
-        isCountDownFinish = false;
-    }
-
-    private void setupUICountDownStop() {
-        mButtonManageTimer.setText("Start");
-        isCountDownFinish = true;
     }
 
     private void defineChart() {
@@ -404,11 +369,11 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mDurationPicker = dialogView.findViewById(R.id.duration_picker);
         setupTimePickerListener();
         dialogBuilder.setPositiveButton(getText(R.string.dialog_start), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
 
-                    }
-                })
+            }
+        })
                 .setNegativeButton(getText(R.string.dialog_cancel), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
@@ -509,15 +474,14 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mRadioGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
 
             @Override
-            public void onCheckedChanged(RadioGroup group, int checkedId)
-            {
-                switch (checkedId){
-                    case R.id.radio_setup_with_duration :{
+            public void onCheckedChanged(RadioGroup group, int checkedId) {
+                switch (checkedId) {
+                    case R.id.radio_setup_with_duration: {
                         mDurationPicker.setVisibility(View.VISIBLE);
                         mTimePicker.setVisibility(View.GONE);
                         break;
                     }
-                    case R.id.radio_setup_with_timer :{
+                    case R.id.radio_setup_with_timer: {
                         mDurationPicker.setVisibility(View.GONE);
                         mTimePicker.setVisibility(View.VISIBLE);
                         break;
@@ -558,20 +522,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         timePickerDialog.show();
     }
 
-    private BroadcastReceiver br = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            updateGUI(intent); // or whatever method used to update your GUI fields
-        }
-    };
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        registerReceiver(br, new IntentFilter(BroadcastService.COUNTDOWN_BR + mPushKey));
-        Log.i(TAG, "Registered broacast receiver");
-    }
-
     @Override
     public void onPause() {
         super.onPause();
@@ -580,42 +530,10 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     }
 
     @Override
-    public void onStop() {
-        try {
-            unregisterReceiver(br);
-        } catch (Exception e) {
-            // Receiver was probably already stopped in onPause()
-        }
-        super.onStop();
-    }
-
-    @Override
     public void onDestroy() {
 //        stopService(new Intent(this, BroadcastService.class));
 //        Log.i(TAG, "Stopped service");
         super.onDestroy();
-    }
-
-    int hour = 0;
-    int minute = 0;
-    int second = 0;
-
-    private void updateGUI(Intent intent) {
-        if (intent.getExtras() != null) {
-            setupUICountDownRun();
-            long millisUntilFinished = intent.getLongExtra("countdown", 0);
-            hour = (int) (millisUntilFinished / 1000 / 3600);
-            minute = (int) (millisUntilFinished / 1000 % 3600 / 60);
-            second = (int) (millisUntilFinished / 1000 % 3600 % 60);
-            mCountDownView.setText(String.format("%02d", hour) + ":" + String.format("%02d", minute) + ":" + String.format("%02d", second));
-            if (millisUntilFinished / 1000 == 1) {
-                setupUICountDownStop();
-                saveStatusToDatabase(false);
-            }
-        } else {
-            setupUICountDownStop();
-            saveStatusToDatabase(false);
-        }
     }
 
     @Override
