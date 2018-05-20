@@ -1,10 +1,13 @@
 package com.example.user.sensor;
 
+import android.app.DatePickerDialog;
+import android.app.TimePickerDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.Resources;
 import android.graphics.DashPathEffect;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AlertDialog;
@@ -22,12 +25,16 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.TimePicker;
 
 import com.example.user.sensor.chart.MyMarkerView;
 import com.github.mikephil.charting.charts.LineChart;
@@ -52,6 +59,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 
 public class DetailActivity extends AppCompatActivity implements OnChartGestureListener, OnChartValueSelectedListener {
 
@@ -63,7 +71,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private Switch mSwitchStatus;
     private TextView mTextViewDeviceName;
     private LineChart mChart;
-    private Button mButtonStartTimer;
+    private Button mButtonManageTimer;
     private Spinner mSpinnerHour;
     private Spinner mSpinnerMinute;
     private Spinner mSpinnerScond;
@@ -71,7 +79,13 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private TextView mMessageView;
     private ImageView mCloseButton;
     private CardView mMassageLayout;
+    private EditText mEditTextStartDate;
+    private EditText mEditTextStartTime;
+    private EditText mEditTextFinishDate;
+    private EditText mEditTextFinishTime;
     private LinearLayout mTimePicker;
+    private LinearLayout mDurationPicker;
+    private RadioGroup mRadioGroup;
 
     private String mDeviceName;
     private String mDeviceId;
@@ -80,7 +94,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     FirebaseDatabase mFirebaseDatabase;
     private FirebaseUser mCurrentUser;
     DatabaseReference mDatabaseReference;
-
 
     ArrayList<Entry> mValuesKWH;
     LineDataSet mSetKWH;
@@ -99,13 +112,9 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mPushKey = intent.getStringExtra(ARGS_PUSH_ID);
 
         mSwitchStatus = findViewById(R.id.switch_status);
-        mButtonStartTimer = findViewById(R.id.button_start_timer);
-        mSpinnerHour = findViewById(R.id.spinner_hour);
-        mSpinnerMinute = findViewById(R.id.spinner_minute);
-        mSpinnerScond = findViewById(R.id.spinner_second);
+        mButtonManageTimer = findViewById(R.id.button_manage_timer);
         mCountDownView = findViewById(R.id.countdown_timer);
         mTextViewDeviceName = findViewById(R.id.text_view_device_name);
-        mTimePicker = findViewById(R.id.time_picker);
         mTextViewDeviceName.setText(mDeviceName);
         mCloseButton = findViewById(R.id.button_close);
         mMassageLayout = findViewById(R.id.layout_massage);
@@ -116,20 +125,17 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mCurrentUser = FirebaseAuth.getInstance().getCurrentUser();
         mValuesKWH = new ArrayList<>();
 
-        mCountDownView.setVisibility(View.GONE);
-
-        setupSpinner();
-
-        mButtonStartTimer.setOnClickListener(new View.OnClickListener() {
+        mButtonManageTimer.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (isCountDownFinish) {
-                    startTimer();
-                } else {
-                    setupUICountDownStop();
-                    saveStatusToDatabase(false);
-                    stopService(new Intent(DetailActivity.this, BroadcastService.class));
-                }
+                showDialogSetupTimer();
+//                if (isCountDownFinish) {
+//                    startTimer();
+//                } else {
+//                    setupUICountDownStop();
+//                    saveStatusToDatabase(false);
+//                    stopService(new Intent(DetailActivity.this, BroadcastService.class));
+//                }
             }
         });
 
@@ -146,7 +152,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
                 try {
                     boolean status = dataSnapshot.getValue(Boolean.class);
                     mSwitchStatus.setChecked(status);
-                } catch (NullPointerException e){
+                } catch (NullPointerException e) {
 
                 }
             }
@@ -162,7 +168,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mDatabaseReference.child("device").child(mDeviceId).child("massage").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                if(dataSnapshot.exists()) {
+                if (dataSnapshot.exists()) {
                     mMassageLayout.setVisibility(View.VISIBLE);
                     mMessageView.setText(dataSnapshot.getValue(String.class));
                 } else {
@@ -201,73 +207,9 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mDatabaseReference.child("device").child(mDeviceId).child("status").setValue(status);
     }
 
-    private void setupSpinner() {
-        final String[] arrayHour = {
-                "00", "01", "02", "03", "04", "05", "06", "07", "08", "09",
-                "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
-                "20", "21", "22", "23", "24"
-        };
-
-        final String[] arrayMinuteAndScond = {
-                "00", "01", "02", "03", "04", "05", "06", "07", "08", "09",
-                "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
-                "20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
-                "30", "31", "32", "33", "34", "35", "36", "37", "38", "39",
-                "40", "41", "42", "43", "44", "45", "46", "47", "48", "49",
-                "50", "51", "52", "53", "54", "55", "56", "57", "58", "59",
-                "60"
-        };
-
-        ArrayAdapter<String> adapterHour = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, arrayHour);
-        adapterHour.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        mSpinnerHour.setAdapter(adapterHour);
-
-        ArrayAdapter<String> adapterMinuteAndScond = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, arrayMinuteAndScond);
-        adapterMinuteAndScond.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        mSpinnerMinute.setAdapter(adapterMinuteAndScond);
-        mSpinnerScond.setAdapter(adapterMinuteAndScond);
-
-
-        mSpinnerHour.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-                mHour = i;
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> adapterView) {
-
-            }
-        });
-        mSpinnerMinute.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-                mMinute = i;
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> adapterView) {
-
-            }
-        });
-        mSpinnerScond.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-                mScond = i;
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> adapterView) {
-
-            }
-        });
-    }
-
     private void startTimer() {
         long milisInFuture = ((mHour * 60 * 60) + (mMinute * 60) + mScond) * 1000;
-        if(milisInFuture!=0){
+        if (milisInFuture != 0) {
             setupUICountDownRun();
             saveStatusToDatabase(true);
 
@@ -280,16 +222,12 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     }
 
     private void setupUICountDownRun() {
-        mTimePicker.setVisibility(View.GONE);
-        mCountDownView.setVisibility(View.VISIBLE);
-        mButtonStartTimer.setText("Stop");
+        mButtonManageTimer.setText("Stop");
         isCountDownFinish = false;
     }
 
     private void setupUICountDownStop() {
-        mTimePicker.setVisibility(View.VISIBLE);
-        mCountDownView.setVisibility(View.GONE);
-        mButtonStartTimer.setText("Start");
+        mButtonManageTimer.setText("Start");
         isCountDownFinish = true;
     }
 
@@ -353,7 +291,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
                 mValuesKWH.clear();
                 int i = 0;
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
-                    if(userSnapshot.child("ampere").getValue(Integer.class)!= null &&
+                    if (userSnapshot.child("ampere").getValue(Integer.class) != null &&
                             userSnapshot.child("voltage").getValue(Integer.class) != null &&
                             userSnapshot.child("duration").getValue(Integer.class) != null) {
                         int ampere = userSnapshot.child("ampere").getValue(Integer.class);
@@ -361,7 +299,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
                         int duration = userSnapshot.child("duration").getValue(Integer.class);
 //                        float kwh = ((ampere * voltage * duration) / 1000) / 60;
                         float kwh = ampere * voltage * duration;
-                        Log.i(TAG, "onDataChange: " + ampere + "A, " + voltage + "V, " + duration + "S, " + (ampere*voltage*duration) + "watt");
+                        Log.i(TAG, "onDataChange: " + ampere + "A, " + voltage + "V, " + duration + "S, " + (ampere * voltage * duration) + "watt");
                         final Entry entry = new Entry(i, kwh);
                         mValuesKWH.add(entry);
                         i++;
@@ -417,20 +355,20 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         }
     }
 
-    private void showDialog(){
+    private void showDialogEdit() {
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
         LayoutInflater inflater = this.getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.dialog_name, null);
         final EditText editTextDeviceName = dialogView.findViewById(R.id.edit_text_name);
         editTextDeviceName.setText(mDeviceName);
         dialogBuilder.setPositiveButton(getText(R.string.dialog_edit), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        String deviceName = editTextDeviceName.getText().toString().trim();
-                        mDatabaseReference.child("device").child(mDeviceId).child("name").setValue(deviceName);
-                        mTextViewDeviceName.setText(deviceName);
-                    }
-                })
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                String deviceName = editTextDeviceName.getText().toString().trim();
+                mDatabaseReference.child("device").child(mDeviceId).child("name").setValue(deviceName);
+                mTextViewDeviceName.setText(deviceName);
+            }
+        })
                 .setNegativeButton(getText(R.string.dialog_delete), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
@@ -448,6 +386,176 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         dialogBuilder.setView(dialogView);
         AlertDialog alertDialog = dialogBuilder.create();
         alertDialog.show();
+    }
+
+    private void showDialogSetupTimer() {
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = this.getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_timer, null);
+        mEditTextStartDate = dialogView.findViewById(R.id.edit_text_start_date);
+        mEditTextStartTime = dialogView.findViewById(R.id.edit_text_start_time);
+        mEditTextFinishDate = dialogView.findViewById(R.id.edit_text_finish_date);
+        mEditTextFinishTime = dialogView.findViewById(R.id.edit_text_finish_time);
+        mSpinnerHour = dialogView.findViewById(R.id.spinner_hour);
+        mSpinnerMinute = dialogView.findViewById(R.id.spinner_minute);
+        mSpinnerScond = dialogView.findViewById(R.id.spinner_second);
+        mRadioGroup = dialogView.findViewById(R.id.radio_group);
+        mTimePicker = dialogView.findViewById(R.id.time_picker);
+        mDurationPicker = dialogView.findViewById(R.id.duration_picker);
+        setupTimePickerListener();
+        dialogBuilder.setPositiveButton(getText(R.string.dialog_start), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                    }
+                })
+                .setNegativeButton(getText(R.string.dialog_cancel), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                    }
+                });
+        dialogBuilder.setView(dialogView);
+        AlertDialog alertDialog = dialogBuilder.create();
+        alertDialog.show();
+    }
+
+    private void setupTimePickerListener() {
+        final String[] arrayHour = {
+                "00", "01", "02", "03", "04", "05", "06", "07", "08", "09",
+                "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
+                "20", "21", "22", "23"
+        };
+
+        final String[] arrayMinuteAndScond = {
+                "00", "01", "02", "03", "04", "05", "06", "07", "08", "09",
+                "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
+                "20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
+                "30", "31", "32", "33", "34", "35", "36", "37", "38", "39",
+                "40", "41", "42", "43", "44", "45", "46", "47", "48", "49",
+                "50", "51", "52", "53", "54", "55", "56", "57", "58", "59"
+        };
+
+        ArrayAdapter<String> adapterHour = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, arrayHour);
+        adapterHour.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mSpinnerHour.setAdapter(adapterHour);
+
+        ArrayAdapter<String> adapterMinuteAndScond = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, arrayMinuteAndScond);
+        adapterMinuteAndScond.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mSpinnerMinute.setAdapter(adapterMinuteAndScond);
+        mSpinnerScond.setAdapter(adapterMinuteAndScond);
+
+
+        mSpinnerHour.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                mHour = i;
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+        mSpinnerMinute.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                mMinute = i;
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+        mSpinnerScond.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                mScond = i;
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+        mEditTextStartDate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                datePicker(mEditTextStartDate);
+            }
+        });
+        mEditTextStartTime.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                timePicker(mEditTextStartTime);
+            }
+        });
+        mEditTextFinishDate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                datePicker(mEditTextFinishDate);
+            }
+        });
+        mEditTextFinishTime.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                timePicker(mEditTextFinishTime);
+            }
+        });
+
+        mRadioGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+
+            @Override
+            public void onCheckedChanged(RadioGroup group, int checkedId)
+            {
+                switch (checkedId){
+                    case R.id.radio_setup_with_duration :{
+                        mDurationPicker.setVisibility(View.VISIBLE);
+                        mTimePicker.setVisibility(View.GONE);
+                        break;
+                    }
+                    case R.id.radio_setup_with_timer :{
+                        mDurationPicker.setVisibility(View.GONE);
+                        mTimePicker.setVisibility(View.VISIBLE);
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    private void datePicker(final EditText editText) {
+        Calendar c = Calendar.getInstance();
+        int mYear = c.get(Calendar.YEAR);
+        int mMonth = c.get(Calendar.MONTH);
+        int mDay = c.get(Calendar.DAY_OF_MONTH);
+        Resources res = getResources();
+        final String mBulan[] = res.getStringArray(R.array.mounth); //change with your mounth
+
+        DatePickerDialog mDatePicker = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
+            public void onDateSet(DatePicker datepicker, int selectedyear, int selectedmonth, int selectedday) {
+                editText.setText(selectedday + " " + mBulan[selectedmonth] + " " + selectedyear);
+            }
+        }, mYear, mMonth, mDay);
+        mDatePicker.show();
+    }
+
+    private void timePicker(final EditText editText) {
+        final Calendar c = Calendar.getInstance();
+        int hour = c.get(Calendar.HOUR_OF_DAY);
+        int minute = c.get(Calendar.MINUTE);
+
+        TimePickerDialog timePickerDialog = new TimePickerDialog(this,
+                new TimePickerDialog.OnTimeSetListener() {
+                    @Override
+                    public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
+                        editText.setText(hourOfDay + ":" + minute);
+                    }
+                }, hour, minute, false);
+        timePickerDialog.show();
     }
 
     private BroadcastReceiver br = new BroadcastReceiver() {
@@ -491,15 +599,16 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     int hour = 0;
     int minute = 0;
     int second = 0;
+
     private void updateGUI(Intent intent) {
         if (intent.getExtras() != null) {
             setupUICountDownRun();
             long millisUntilFinished = intent.getLongExtra("countdown", 0);
-            hour = (int) (millisUntilFinished/1000/3600);
-            minute = (int) (millisUntilFinished/1000%3600/60);
-            second = (int) (millisUntilFinished/1000%3600%60);
-            mCountDownView.setText(String.format("%02d", hour) + ":" + String.format("%02d", minute) + ":" +String.format("%02d", second));
-            if(millisUntilFinished/1000 == 1){
+            hour = (int) (millisUntilFinished / 1000 / 3600);
+            minute = (int) (millisUntilFinished / 1000 % 3600 / 60);
+            second = (int) (millisUntilFinished / 1000 % 3600 % 60);
+            mCountDownView.setText(String.format("%02d", hour) + ":" + String.format("%02d", minute) + ":" + String.format("%02d", second));
+            if (millisUntilFinished / 1000 == 1) {
                 setupUICountDownStop();
                 saveStatusToDatabase(false);
             }
@@ -521,7 +630,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.menu_edit:
-                showDialog();
+                showDialogEdit();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);

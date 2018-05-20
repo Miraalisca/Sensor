@@ -58,59 +58,19 @@
                     android:layout_height="wrap_content"
                     android:text="@string/title_start_with_timer" />
 
-                <LinearLayout
-                    android:id="@+id/time_picker"
-                    android:layout_width="match_parent"
-                    android:layout_height="45dp"
-                    android:orientation="horizontal">
-
-                    <Spinner
-                        android:id="@+id/spinner_hour"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:text=" : " />
-
-                    <Spinner
-                        android:id="@+id/spinner_minute"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:text=" : " />
-
-
-                    <Spinner
-                        android:id="@+id/spinner_second"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1" />
-
-                </LinearLayout>
-
-
                 <TextView
                     android:id="@+id/countdown_timer"
                     android:layout_width="match_parent"
                     android:layout_height="45dp"
                     android:gravity="center"
                     android:textSize="20sp"
-                    android:visibility="gone" />
+                    android:text="00:00:00"/>
 
                 <Button
-                    android:id="@+id/button_start_timer"
+                    android:id="@+id/button_manage_timer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/button_start" />
+                    android:text="@string/button_setup_timer" />
             </LinearLayout>
         </android.support.v7.widget.CardView>
 
