@@ -19,7 +19,6 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.MotionEvent;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -38,7 +37,6 @@ import android.widget.TimePicker;
 import com.example.user.sensor.chart.MyMarkerView;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.Legend;
-import com.github.mikephil.charting.components.LimitLine;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
@@ -46,8 +44,6 @@ import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.highlight.Highlight;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
-import com.github.mikephil.charting.listener.ChartTouchListener;
-import com.github.mikephil.charting.listener.OnChartGestureListener;
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -60,11 +56,10 @@ import com.google.firebase.database.ValueEventListener;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 
-public class DetailActivity extends AppCompatActivity implements OnChartGestureListener, OnChartValueSelectedListener {
+public class DetailActivity extends AppCompatActivity implements OnChartValueSelectedListener {
 
     public static final String ARGS_DEVICE_NAME = "device name";
     public static final String ARGS_DEVICE_ID = "device id";
@@ -81,6 +76,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private TextView mMessageView;
     private TextView mTimeLineView;
     private TextView mPrectionPriceView;
+    private TextView mNoDataMessage;
     private ImageView mCloseButton;
     private CardView mMassageLayout;
     private EditText mEditTextStartDate;
@@ -102,9 +98,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private FirebaseUser mCurrentUser;
     DatabaseReference mDatabaseReference;
 
-    ArrayList<Entry> mValuesKWH;
-    LineDataSet mSetKWH;
-
     private int mHour = 0, mMinute = 0, mScond = 0;
 
     @Override
@@ -119,6 +112,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
 
         mSwitchStatus = findViewById(R.id.switch_status);
         mButtonManageTimer = findViewById(R.id.button_manage_timer);
+        mNoDataMessage = findViewById(R.id.no_data_massage);
         mTextViewDeviceName = findViewById(R.id.text_view_device_name);
         mTextViewDeviceName.setText(mDeviceName);
         mTimeLineView = findViewById(R.id.timeline);
@@ -126,11 +120,11 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mCloseButton = findViewById(R.id.button_close);
         mMassageLayout = findViewById(R.id.layout_massage);
         mMessageView = findViewById(R.id.view_massage);
+        mChart = findViewById(R.id.line_chart);
 
         mFirebaseDatabase = FirebaseDatabase.getInstance();
         mDatabaseReference = mFirebaseDatabase.getReference();
         mCurrentUser = FirebaseAuth.getInstance().getCurrentUser();
-        mValuesKWH = new ArrayList<>();
 
         mButtonManageTimer.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -146,8 +140,9 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         readStatus();
         setStatus();
         setMassage();
-        defineChart();
         readStartAndFinishTimer();
+        defineChart();
+        readKWH();
     }
 
     private void resetAllTimer() {
@@ -212,50 +207,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mDatabaseReference.child("device").child(mDeviceId).child("status").setValue(status);
     }
 
-    private void defineChart() {
-        mChart = findViewById(R.id.line_chart);
-        mChart.setOnChartGestureListener(this);
-        mChart.setOnChartValueSelectedListener(this);
-        mChart.setDrawGridBackground(false);
-
-        mChart.getDescription().setEnabled(false);
-
-        mChart.setTouchEnabled(true);
-
-        mChart.setDragEnabled(true);
-        mChart.setScaleEnabled(true);
-        mChart.setPinchZoom(true);
-
-        MyMarkerView mv = new MyMarkerView(this, R.layout.custom_marker_view);
-        mv.setChartView(mChart); // For bounds control
-        mChart.setMarker(mv); // Set the marker to the chart
-
-        // x-axis limit line
-        LimitLine llXAxis = new LimitLine(10f, "Index 10");
-        llXAxis.setLineWidth(4f);
-        llXAxis.enableDashedLine(10f, 10f, 0f);
-        llXAxis.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_BOTTOM);
-        llXAxis.setTextSize(10f);
-
-        XAxis xAxis = mChart.getXAxis();
-        xAxis.enableGridDashedLine(10f, 10f, 0f);
-
-        YAxis leftAxis = mChart.getAxisLeft();
-
-        leftAxis.enableGridDashedLine(10f, 10f, 0f);
-        leftAxis.setDrawZeroLine(false);
-        leftAxis.setAxisMinimum(0);
-
-        leftAxis.setDrawLimitLinesBehindData(true);
-
-        mChart.getAxisRight().setEnabled(false);
-        readKWH();
-
-        mChart.animateX(2500);
-        Legend l = mChart.getLegend();
-        l.setForm(Legend.LegendForm.LINE);
-    }
-
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
@@ -269,7 +220,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         myRef.child("device").child(mDeviceId).child("value").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                mValuesKWH.clear();
+                mChart.clearValues();
                 int i = 0;
                 float tempKwh = 0;
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
@@ -282,15 +233,22 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
                         float kwh = ((ampere * voltage * duration) / 1000) / 3600;
 //                        float kwh = ampere * voltage * duration;
                         Log.i(TAG, "onDataChange: " + ampere + "A, " + voltage + "V, " + duration + "S, " + (ampere * voltage * duration) + "watt");
-                        final Entry entry = new Entry(i, kwh);
-                        mValuesKWH.add(entry);
+                        addEntry(kwh);
 
                         tempKwh += kwh;
                         i++;
                     }
                 }
+
+                if(dataSnapshot.getChildrenCount() == 0){
+                    mNoDataMessage.setVisibility(View.VISIBLE);
+                    mChart.setVisibility(View.GONE);
+                } else {
+                    mNoDataMessage.setVisibility(View.GONE);
+                    mChart.setVisibility(View.VISIBLE);
+                }
+
                 mAverageKwH = tempKwh/(i+1);
-                setData();
             }
 
             @Override
@@ -330,44 +288,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
 
             }
         });
-    }
-
-    private void setData() {
-        if (mChart.getData() != null &&
-                mChart.getData().getDataSetCount() > 0) {
-            mSetKWH = (LineDataSet) mChart.getData().getDataSetByIndex(0);
-            mSetKWH.setValues(mValuesKWH);
-
-            mChart.getData().notifyDataChanged();
-            mChart.notifyDataSetChanged();
-        } else {
-            // create a dataset and give it a type
-            mSetKWH = new LineDataSet(mValuesKWH, "KWH");
-
-            mSetKWH.setDrawIcons(false);
-
-            int color1 = ResourcesCompat.getColor(getResources(), R.color.colorChart1, null);
-            mSetKWH.enableDashedHighlightLine(10f, 5f, 0f);
-            mSetKWH.setColor(color1);
-            mSetKWH.setCircleColor(color1);
-            mSetKWH.setLineWidth(1f);
-            mSetKWH.setCircleRadius(3f);
-            mSetKWH.setDrawCircleHole(false);
-            mSetKWH.setValueTextSize(9f);
-            mSetKWH.setDrawValues(false);
-//            mSetKWH.setDrawFilled(true);
-            mSetKWH.setFormLineWidth(1f);
-            mSetKWH.setFormLineDashEffect(new DashPathEffect(new float[]{10f, 5f}, 0f));
-            mSetKWH.setFormSize(15.f);
-            mSetKWH.setFillColor(color1);
-
-
-            ArrayList<ILineDataSet> dataSets = new ArrayList<ILineDataSet>();
-            dataSets.add(mSetKWH);
-
-            LineData data = new LineData(dataSets);
-            mChart.setData(data);
-        }
     }
 
     private void showDialogEdit() {
@@ -590,20 +510,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     }
 
     @Override
-    public void onPause() {
-        super.onPause();
-//        unregisterReceiver(br);
-//        Log.i(TAG, "Unregistered broacast receiver");
-    }
-
-    @Override
-    public void onDestroy() {
-//        stopService(new Intent(this, BroadcastService.class));
-//        Log.i(TAG, "Stopped service");
-        super.onDestroy();
-    }
-
-    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.detail_menu, menu);
@@ -620,62 +526,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
             default:
                 return super.onOptionsItemSelected(item);
         }
-    }
-
-    @Override
-    public void onChartGestureStart(MotionEvent me, ChartTouchListener.ChartGesture lastPerformedGesture) {
-        Log.i("Gesture", "START, x: " + me.getX() + ", y: " + me.getY());
-    }
-
-    @Override
-    public void onChartGestureEnd(MotionEvent me, ChartTouchListener.ChartGesture lastPerformedGesture) {
-        Log.i("Gesture", "END, lastGesture: " + lastPerformedGesture);
-
-        // un-highlight values after the gesture is finished and no single-tap
-        if (lastPerformedGesture != ChartTouchListener.ChartGesture.SINGLE_TAP)
-            mChart.highlightValues(null); // or highlightTouch(null) for callback to onNothingSelected(...)
-    }
-
-    @Override
-    public void onChartLongPressed(MotionEvent me) {
-        Log.i("LongPress", "Chart longpressed.");
-    }
-
-    @Override
-    public void onChartDoubleTapped(MotionEvent me) {
-        Log.i("DoubleTap", "Chart double-tapped.");
-    }
-
-    @Override
-    public void onChartSingleTapped(MotionEvent me) {
-        Log.i("SingleTap", "Chart single-tapped.");
-    }
-
-    @Override
-    public void onChartFling(MotionEvent me1, MotionEvent me2, float velocityX, float velocityY) {
-        Log.i("Fling", "Chart flinged. VeloX: " + velocityX + ", VeloY: " + velocityY);
-    }
-
-    @Override
-    public void onChartScale(MotionEvent me, float scaleX, float scaleY) {
-        Log.i("Scale / Zoom", "ScaleX: " + scaleX + ", ScaleY: " + scaleY);
-    }
-
-    @Override
-    public void onChartTranslate(MotionEvent me, float dX, float dY) {
-        Log.i("Translate / Move", "dX: " + dX + ", dY: " + dY);
-    }
-
-    @Override
-    public void onValueSelected(Entry e, Highlight h) {
-        Log.i("Entry selected", e.toString());
-        Log.i("LOWHIGH", "low: " + mChart.getLowestVisibleX() + ", high: " + mChart.getHighestVisibleX());
-        Log.i("MIN MAX", "xmin: " + mChart.getXChartMin() + ", xmax: " + mChart.getXChartMax() + ", ymin: " + mChart.getYChartMin() + ", ymax: " + mChart.getYChartMax());
-    }
-
-    @Override
-    public void onNothingSelected() {
-        Log.i("Nothing selected", "Nothing selected.");
     }
 
     private void startAlarm(long startTime) {
@@ -715,4 +565,116 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         float price = (mAverageKwH * duration /3600) * 1100;
         return price;
     }
+
+    private void defineChart(){
+        mChart.setOnChartValueSelectedListener(this);
+
+        // enable description text
+        mChart.getDescription().setEnabled(false);
+
+        // enable touch gestures
+        mChart.setTouchEnabled(true);
+
+        // enable scaling and dragging
+        mChart.setDragEnabled(true);
+        mChart.setScaleEnabled(true);
+        mChart.setDrawGridBackground(false);
+
+        // if disabled, scaling can be done on x- and y-axis separately
+        mChart.setPinchZoom(true);
+
+        MyMarkerView mv = new MyMarkerView(this, R.layout.custom_marker_view);
+        mv.setChartView(mChart); // For bounds control
+        mChart.setMarker(mv); // Set the marker to the chart
+
+        LineData data = new LineData();
+
+        // add empty data
+        mChart.setData(data);
+
+        // get the legend (only possible after setting data)
+        Legend l = mChart.getLegend();
+
+        // modify the legend ...
+        l.setForm(Legend.LegendForm.LINE);
+
+        XAxis xl = mChart.getXAxis();
+        xl.setDrawGridLines(false);
+        xl.setAvoidFirstLastClipping(true);
+        xl.setEnabled(true);
+
+        YAxis leftAxis = mChart.getAxisLeft();
+        leftAxis.setAxisMaximum(100f);
+        leftAxis.setAxisMinimum(0f);
+        leftAxis.setDrawGridLines(true);
+
+        YAxis rightAxis = mChart.getAxisRight();
+        rightAxis.setEnabled(false);
+    }
+
+    private LineDataSet createSet() {
+
+        LineDataSet set = new LineDataSet(null, "KwH");
+        set.setDrawIcons(false);
+
+        int color1 = ResourcesCompat.getColor(getResources(), R.color.colorChart1, null);
+        set.enableDashedHighlightLine(10f, 5f, 0f);
+        set.setColor(color1);
+        set.setCircleColor(color1);
+        set.setLineWidth(1f);
+        set.setCircleRadius(3f);
+        set.setDrawCircleHole(false);
+        set.setValueTextSize(9f);
+        set.setDrawValues(false);
+//            mSetKWH.setDrawFilled(true);
+        set.setFormLineWidth(1f);
+        set.setFormLineDashEffect(new DashPathEffect(new float[]{10f, 5f}, 0f));
+        set.setFormSize(15.f);
+        set.setFillColor(color1);
+        return set;
+    }
+
+    private void addEntry(float value) {
+
+        LineData data = mChart.getData();
+
+        if (data != null) {
+
+            ILineDataSet set = data.getDataSetByIndex(0);
+            // set.addEntry(...); // can be called as well
+
+            if (set == null) {
+                set = createSet();
+                data.addDataSet(set);
+            }
+
+            data.addEntry(new Entry(set.getEntryCount(), value), 0);
+            data.notifyDataChanged();
+
+            // let the chart know it's data has changed
+            mChart.notifyDataSetChanged();
+
+            // limit the number of visible entries
+            mChart.setVisibleXRangeMaximum(120);
+            // mChart.setVisibleYRange(30, AxisDependency.LEFT);
+
+            // move to the latest entry
+            mChart.moveViewToX(data.getEntryCount());
+
+            // this automatically refreshes the chart (calls invalidate())
+            // mChart.moveViewTo(data.getXValCount()-7, 55f,
+            // AxisDependency.LEFT);
+        }
+    }
+
+    @Override
+    public void onValueSelected(Entry e, Highlight h) {
+        Log.i("Entry selected", e.toString());
+    }
+
+    @Override
+    public void onNothingSelected() {
+        Log.i("Nothing selected", "Nothing selected.");
+    }
+
 }

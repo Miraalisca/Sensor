@@ -19,6 +19,7 @@
     <string name="menu_add">Add With Text</string>
     <string name="title_setup_with_timer">Use Time</string>
     <string name="title_setup_with_duration">Use Duration</string>
+    <string name="chart_no_data_message">No One Data Here</string>
 
     <array name="mounth">
         <item>January</item>
