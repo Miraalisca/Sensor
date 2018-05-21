@@ -437,7 +437,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
                     finishTime = getUnixTimeStamp(mEditTextFinishDate.getText().toString() + ", " + mEditTextFinishTime.getText().toString());
                 }
                 saveTimeSetupToDatabase(startTime, finishTime);
-                startAlarm(startTime, finishTime);
+                startAlarm(startTime);
             }
         })
                 .setNegativeButton(getText(R.string.dialog_cancel), new DialogInterface.OnClickListener() {
@@ -452,8 +452,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     }
 
     private void saveTimeSetupToDatabase(long startTime, long finishTime) {
-        mDatabaseReference.child("device").child(mDeviceId).child("startTime").setValue(startTime);
-        mDatabaseReference.child("device").child(mDeviceId).child("finishTime").setValue(finishTime);
+        mDatabaseReference.child("device").child(mDeviceId).child("startTime").setValue(startTime/1000);
+        mDatabaseReference.child("device").child(mDeviceId).child("finishTime").setValue(finishTime/1000);
     }
 
     private void setupTimePickerListener() {
@@ -684,23 +684,16 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         Log.i("Nothing selected", "Nothing selected.");
     }
 
-    private void startAlarm(long timeStart, long timeFinish) {
+    private void startAlarm(long startTime) {
         AlarmManager manager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
         Intent startIntent = new Intent(DetailActivity.this, AlarmReceiver.class);
         startIntent.putExtra("title", mDeviceName);
         startIntent.putExtra("content", true);
         startIntent.putExtra("device_id", mDeviceId);
-        PendingIntent startPendingIntent = PendingIntent.getBroadcast(DetailActivity.this, 0, startIntent, 0);
+        PendingIntent startPendingIntent = PendingIntent.getBroadcast(DetailActivity.this, 1, startIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
-        Intent finishIntent = new Intent(DetailActivity.this, AlarmReceiver.class);
-        finishIntent.putExtra("title", mDeviceName);
-        finishIntent.putExtra("content", false);
-        finishIntent.putExtra("device_id", mDeviceId);
-        PendingIntent finishPendingIntent = PendingIntent.getBroadcast(DetailActivity.this, 0, finishIntent, 0);
-
-        manager.set(AlarmManager.RTC_WAKEUP, timeStart, startPendingIntent);
-        manager.set(AlarmManager.RTC_WAKEUP, timeFinish, finishPendingIntent);
+        manager.set(AlarmManager.RTC_WAKEUP, startTime, startPendingIntent);
     }
 
     private long getUnixTimeStamp(String time) {
@@ -710,7 +703,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
             DateFormat formatter = new SimpleDateFormat("dd MMMMM yyyy, HH:mm");
             date = formatter.parse(time);
             Log.i(TAG, "getUnixTimeStamp: " + date.getTime());
-            return date.getTime()/1000;
+            return date.getTime();
         } catch (ParseException e) {
             e.printStackTrace();
             return 0;
