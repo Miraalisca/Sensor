@@ -42,6 +42,7 @@ import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.formatter.IAxisValueFormatter;
 import com.github.mikephil.charting.highlight.Highlight;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
@@ -226,14 +227,16 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
                     if (userSnapshot.child("ampere").getValue(Integer.class) != null &&
                             userSnapshot.child("voltage").getValue(Integer.class) != null &&
+                            userSnapshot.child("start").getValue(Integer.class) != null &&
                             userSnapshot.child("duration").getValue(Integer.class) != null) {
                         int ampere = userSnapshot.child("ampere").getValue(Integer.class);
                         int voltage = userSnapshot.child("voltage").getValue(Integer.class);
                         int duration = userSnapshot.child("duration").getValue(Integer.class);
+                        long time = userSnapshot.child("start").getValue(Long.class);
                         float kwh = ((ampere * voltage * duration) / 1000) / 3600;
 //                        float kwh = ampere * voltage * duration;
                         Log.i(TAG, "onDataChange: " + ampere + "A, " + voltage + "V, " + duration + "S, " + (ampere * voltage * duration) + "watt");
-                        addEntry(kwh);
+                        addEntry(time, kwh);
 
                         tempKwh += kwh;
                         i++;
@@ -591,6 +594,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
         // add empty data
         mChart.setData(data);
+//        mChart.setVisibleXRange(1526688000, 1526903268);
 
         // get the legend (only possible after setting data)
         Legend l = mChart.getLegend();
@@ -598,10 +602,15 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         // modify the legend ...
         l.setForm(Legend.LegendForm.LINE);
 
+
+//        IAxisValueFormatter xAxisFormatter = new DateAxisValueFormatter(1526688000);
         XAxis xl = mChart.getXAxis();
         xl.setDrawGridLines(false);
         xl.setAvoidFirstLastClipping(true);
         xl.setEnabled(true);
+//        xl.setValueFormatter(xAxisFormatter);
+        xl.setGranularityEnabled(true);
+        xl.setGranularity(1f);
 
         YAxis leftAxis = mChart.getAxisLeft();
         leftAxis.setAxisMaximum(100f);
@@ -634,7 +643,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         return set;
     }
 
-    private void addEntry(float value) {
+    private void addEntry(long time, float value) {
 
         LineData data = mChart.getData();
 
@@ -648,6 +657,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 data.addDataSet(set);
             }
 
+//            data.addEntry(new Entry(time-1526688000, value), 0);
             data.addEntry(new Entry(set.getEntryCount(), value), 0);
             data.notifyDataChanged();
 
