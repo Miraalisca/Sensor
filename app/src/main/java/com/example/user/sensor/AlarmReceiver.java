@@ -90,10 +90,9 @@ public class AlarmReceiver extends BroadcastReceiver {
         mFirebaseDatabase = FirebaseDatabase.getInstance();
         mDatabaseReference = mFirebaseDatabase.getReference();
         mDatabaseReference.child("device").child(deviceId).child("status").setValue(status);
-        if(status) {
-            mDatabaseReference.child("device").child(deviceId).child("startTime").setValue(0);
-        } else {
-            mDatabaseReference.child("device").child(deviceId).child("finishTime").setValue(0);
+        if(!status) {
+            mDatabaseReference.child("device").child(deviceId).child("startTime").removeValue();
+            mDatabaseReference.child("device").child(deviceId).child("finishTime").removeValue();
         }
     }
 

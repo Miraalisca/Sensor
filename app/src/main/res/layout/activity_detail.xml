@@ -59,16 +59,15 @@
                     android:text="@string/title_start_with_timer" />
 
                 <TextView
-                    android:id="@+id/start_time"
+                    android:id="@+id/timeline"
                     android:layout_width="match_parent"
-                    android:layout_height="45dp"
-                    android:gravity="center"
-                    android:textSize="20sp"/>
+                    android:layout_height="wrap_content"
+                    android:gravity="center"/>
 
                 <TextView
-                    android:id="@+id/finish_time"
+                    android:id="@+id/prediction_price"
                     android:layout_width="match_parent"
-                    android:layout_height="45dp"
+                    android:layout_height="wrap_content"
                     android:gravity="center"
                     android:textSize="20sp"/>
 

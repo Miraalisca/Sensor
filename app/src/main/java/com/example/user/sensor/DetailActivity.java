@@ -79,8 +79,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private Spinner mSpinnerMinute;
     private Spinner mSpinnerScond;
     private TextView mMessageView;
-    private TextView mStartTimeView;
-    private TextView mFinishTimeView;
+    private TextView mTimeLineView;
+    private TextView mPrectionPriceView;
     private ImageView mCloseButton;
     private CardView mMassageLayout;
     private EditText mEditTextStartDate;
@@ -94,6 +94,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     private String mDeviceName;
     private String mDeviceId;
     private String mPushKey;
+    private float mAverageKwH;
     private Boolean mIsUseDuration = false;
     private Boolean mIsInSetup = false;
 
@@ -120,8 +121,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mButtonManageTimer = findViewById(R.id.button_manage_timer);
         mTextViewDeviceName = findViewById(R.id.text_view_device_name);
         mTextViewDeviceName.setText(mDeviceName);
-        mStartTimeView = findViewById(R.id.start_time);
-        mFinishTimeView = findViewById(R.id.finish_time);
+        mTimeLineView = findViewById(R.id.timeline);
+        mPrectionPriceView = findViewById(R.id.prediction_price);
         mCloseButton = findViewById(R.id.button_close);
         mMassageLayout = findViewById(R.id.layout_massage);
         mMessageView = findViewById(R.id.view_massage);
@@ -270,6 +271,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
             public void onDataChange(DataSnapshot dataSnapshot) {
                 mValuesKWH.clear();
                 int i = 0;
+                float tempKwh = 0;
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
                     if (userSnapshot.child("ampere").getValue(Integer.class) != null &&
                             userSnapshot.child("voltage").getValue(Integer.class) != null &&
@@ -277,14 +279,17 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
                         int ampere = userSnapshot.child("ampere").getValue(Integer.class);
                         int voltage = userSnapshot.child("voltage").getValue(Integer.class);
                         int duration = userSnapshot.child("duration").getValue(Integer.class);
-//                        float kwh = ((ampere * voltage * duration) / 1000) / 60;
-                        float kwh = ampere * voltage * duration;
+                        float kwh = ((ampere * voltage * duration) / 1000) / 3600;
+//                        float kwh = ampere * voltage * duration;
                         Log.i(TAG, "onDataChange: " + ampere + "A, " + voltage + "V, " + duration + "S, " + (ampere * voltage * duration) + "watt");
                         final Entry entry = new Entry(i, kwh);
                         mValuesKWH.add(entry);
+
+                        tempKwh += kwh;
                         i++;
                     }
                 }
+                mAverageKwH = tempKwh/(i+1);
                 setData();
             }
 
@@ -298,38 +303,25 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
     }
 
     private void readStartAndFinishTimer(){
-        mDatabaseReference.child("device").child("130520180002").child("startTime").addValueEventListener(new ValueEventListener() {
+        mDatabaseReference.child("device").child(mDeviceId).addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                if(dataSnapshot.exists()){
-                    if(dataSnapshot.getValue(Long.class)!=0) {
-                        mStartTimeView.setVisibility(View.VISIBLE);
-                        mStartTimeView.setText(getTime(dataSnapshot.getValue(Long.class)));
+                if(dataSnapshot.child("startTime").exists() && dataSnapshot.child("finishTime").exists()){
+                    if(dataSnapshot.child("startTime").getValue(Long.class)!=0 && dataSnapshot.child("finishTime").getValue(Long.class)!=0) {
+                        mTimeLineView.setVisibility(View.VISIBLE);
+                        mPrectionPriceView.setVisibility(View.VISIBLE);
+
+                        long startTime = dataSnapshot.child("startTime").getValue(Long.class);
+                        long finishTime = dataSnapshot.child("finishTime").getValue(Long.class);
+                        mTimeLineView.setText(getTime(startTime) + " - " + getTime(finishTime));
+                        mPrectionPriceView.setText("Rp. " + String.valueOf(setupPrediction(finishTime - startTime)));
                     } else {
-                        mStartTimeView.setVisibility(View.GONE);
+                        mPrectionPriceView.setVisibility(View.GONE);
+                        mTimeLineView.setVisibility(View.GONE);
                     }
                 } else {
-                    mStartTimeView.setVisibility(View.GONE);
-                }
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-
-            }
-        });
-        mDatabaseReference.child("device").child("130520180002").child("finishTime").addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                if(dataSnapshot.exists()){
-                    if(dataSnapshot.getValue(Long.class)!=0) {
-                        mFinishTimeView.setVisibility(View.VISIBLE);
-                        mFinishTimeView.setText(getTime(dataSnapshot.getValue(Long.class)));
-                    } else {
-                        mFinishTimeView.setVisibility(View.GONE);
-                    }
-                } else {
-                    mFinishTimeView.setVisibility(View.GONE);
+                    mPrectionPriceView.setVisibility(View.GONE);
+                    mTimeLineView.setVisibility(View.GONE);
                 }
             }
 
@@ -436,6 +428,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
                 } else {
                     finishTime = getUnixTimeStamp(mEditTextFinishDate.getText().toString() + ", " + mEditTextFinishTime.getText().toString());
                 }
+
+                long duration = startTime - finishTime;
                 saveTimeSetupToDatabase(startTime, finishTime);
                 startAlarm(startTime);
             }
@@ -714,5 +708,11 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         Date date = new Date(unixTimeStamp*1000);
         String dateInText = new SimpleDateFormat("dd MMM yyyy, HH:mm").format(date);
         return dateInText;
+    }
+
+    private float setupPrediction(long duration){
+        Log.i(TAG, "setupPrediction: " + mAverageKwH + " | " + duration + " | " + (float)1100/3600);
+        float price = (mAverageKwH * duration /3600) * 1100;
+        return price;
     }
 }

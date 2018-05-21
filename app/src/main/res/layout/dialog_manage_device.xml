@@ -13,6 +13,7 @@
             android:id="@+id/input_device_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:maxLines="1"
             android:hint="@string/hint_device_name" />
 
     </android.support.design.widget.TextInputLayout>
@@ -27,6 +28,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/hint_device_id"
+            android:maxLines="1"
             android:inputType="numberDecimal"/>
 
     </android.support.design.widget.TextInputLayout>
