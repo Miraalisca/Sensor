@@ -81,10 +81,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     private TextView mTimeLineView;
     private TextView mPrectionPriceView;
     private TextView mNoDataMessage;
-    private ImageView mCloseButton;
-    private ImageView mCloseButton2;
     private CardView mMassageLayout;
-    private CardView mMassageLayout2;
     private EditText mEditTextStartDate;
     private EditText mEditTextStartTime;
     private EditText mEditTextFinishDate;
@@ -126,10 +123,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         mTextViewDeviceStatus.setText(mDeviceName);
         mTimeLineView = findViewById(R.id.timeline);
         mPrectionPriceView = findViewById(R.id.prediction_price);
-        mCloseButton = findViewById(R.id.button_close);
-        mCloseButton2 = findViewById(R.id.button_close_2);
         mMassageLayout = findViewById(R.id.layout_massage);
-        mMassageLayout2 = findViewById(R.id.layout_massage_2);
         mMessageView = findViewById(R.id.view_massage);
         mMessageView2 = findViewById(R.id.view_massage_2);
         mChart = findViewById(R.id.line_chart);
@@ -206,31 +200,16 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
-                    mMassageLayout2.setVisibility(View.VISIBLE);
+                    mMassageLayout.setVisibility(View.VISIBLE);
                     mMessageView2.setText("You Have Save " + String.valueOf(makeSavingResult()));
                 } else {
-                    mMassageLayout2.setVisibility(View.GONE);
+                    mMassageLayout.setVisibility(View.GONE);
                 }
             }
 
             @Override
             public void onCancelled(DatabaseError databaseError) {
 
-            }
-        });
-
-        mCloseButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mDatabaseReference.child("device").child(mDeviceId).child("massage").removeValue();
-                mMassageLayout.setVisibility(View.GONE);
-            }
-        });
-        mCloseButton2.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mDatabaseReference.child("device").child(mDeviceId).child("massage2").removeValue();
-                mMassageLayout2.setVisibility(View.GONE);
             }
         });
     }
@@ -394,12 +373,13 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 long startTime = getUnixTimeStamp(mEditTextStartDate.getText().toString() + ", " + mEditTextStartTime.getText().toString());
                 long finishTime;
                 if(mIsUseDuration) {
-                    finishTime = startTime + mHour*3600 + mMinute*60 + mScond;
+                    Log.i(TAG, "onClick: " + mHour + " | " + mMinute + " | " + mScond);
+                    finishTime = startTime + (mHour*3600 + mMinute*60 + mScond) * 1000;
+                    Log.i(TAG, "onClick: " + startTime);
+                    Log.i(TAG, "onClick: " + finishTime);
                 } else {
                     finishTime = getUnixTimeStamp(mEditTextFinishDate.getText().toString() + ", " + mEditTextFinishTime.getText().toString());
                 }
-
-                long duration = startTime - finishTime;
                 saveTimeSetupToDatabase(startTime, finishTime);
                 startAlarm(startTime);
             }
@@ -585,6 +565,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 return super.onOptionsItemSelected(item);
         }
     }
+
 
     private void startAlarm(long startTime) {
         AlarmManager manager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
