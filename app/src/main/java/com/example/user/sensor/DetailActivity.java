@@ -14,6 +14,8 @@ import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.CardView;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -33,6 +35,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.TimePicker;
 
+import com.example.user.sensor.adapter.HistoryAdapter;
 import com.example.user.sensor.chart.MyMarkerView;
 import com.example.user.sensor.model.DeviceHistory;
 import com.github.mikephil.charting.charts.LineChart;
@@ -89,7 +92,9 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     private LinearLayout mTimePicker;
     private LinearLayout mDurationPicker;
     private RadioGroup mRadioGroup;
+    private RecyclerView mListHistory;
 
+    private HistoryAdapter mHistoryAdapter;
     private String mDeviceName;
     private String mDeviceId;
     private String mPushKey;
@@ -128,6 +133,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         mMessageView = findViewById(R.id.view_massage);
         mMessageView2 = findViewById(R.id.view_massage_2);
         mChart = findViewById(R.id.line_chart);
+        mListHistory = findViewById(R.id.list_history);
 
         mFirebaseDatabase = FirebaseDatabase.getInstance();
         mDatabaseReference = mFirebaseDatabase.getReference();
@@ -145,6 +151,15 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 }
             }
         });
+
+        mListHistory.setHasFixedSize(true);
+
+        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this);
+        mListHistory.setLayoutManager(linearLayoutManager);
+
+        // specify an adapter (see also next example)
+        mHistoryAdapter = new HistoryAdapter(recordKWH, this);
+        mListHistory.setAdapter(mHistoryAdapter);
 
         readStatus();
         setStatus();
@@ -246,6 +261,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 mChart.clearValues();
+                recordKWH.clear();
                 int i = 0;
                 float tempKwh = 0;
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
@@ -278,6 +294,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 }
 
                 setMassage();
+                mHistoryAdapter.notifyDataSetChanged();
                 mAverageKwH = tempKwh/(i+1);
             }
 
@@ -804,5 +821,4 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     public void onNothingSelected() {
         Log.i("Nothing selected", "Nothing selected.");
     }
-
 }
