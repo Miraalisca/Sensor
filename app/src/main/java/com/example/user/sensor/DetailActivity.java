@@ -43,7 +43,6 @@ import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
-import com.github.mikephil.charting.formatter.IAxisValueFormatter;
 import com.github.mikephil.charting.highlight.Highlight;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
@@ -71,7 +70,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     private static final String TAG = DetailActivity.class.getSimpleName();
 
     private Switch mSwitchStatus;
-    private TextView mTextViewDeviceName;
+    private TextView mTextViewDeviceStatus;
     private LineChart mChart;
     private Button mButtonManageTimer;
     private Spinner mSpinnerHour;
@@ -95,6 +94,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     private RadioGroup mRadioGroup;
 
     private String mDeviceName;
+    private String mDeviceStatus;
     private String mDeviceId;
     private String mPushKey;
     private float mAverageKwH;
@@ -118,11 +118,12 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         mDeviceId = intent.getStringExtra(ARGS_DEVICE_ID);
         mPushKey = intent.getStringExtra(ARGS_PUSH_ID);
 
+        getSupportActionBar().setTitle(mDeviceName);
         mSwitchStatus = findViewById(R.id.switch_status);
         mButtonManageTimer = findViewById(R.id.button_manage_timer);
         mNoDataMessage = findViewById(R.id.no_data_massage);
-        mTextViewDeviceName = findViewById(R.id.text_view_device_name);
-        mTextViewDeviceName.setText(mDeviceName);
+        mTextViewDeviceStatus = findViewById(R.id.text_view_device_status);
+        mTextViewDeviceStatus.setText(mDeviceName);
         mTimeLineView = findViewById(R.id.timeline);
         mPrectionPriceView = findViewById(R.id.prediction_price);
         mCloseButton = findViewById(R.id.button_close);
@@ -168,6 +169,10 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 try {
                     boolean status = dataSnapshot.getValue(Boolean.class);
                     mSwitchStatus.setChecked(status);
+                    if(status)
+                        mTextViewDeviceStatus.setText(R.string.title_device_status_on);
+                    else
+                        mTextViewDeviceStatus.setText(R.string.title_device_status_off);
                 } catch (NullPointerException e) {
                     Log.e(TAG, "onDataChange: " + e.getMessage());
                 }
@@ -235,6 +240,10 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean status) {
                 saveStatusToDatabase(status);
+                if(status)
+                    mTextViewDeviceStatus.setText(R.string.title_device_status_on);
+                else
+                    mTextViewDeviceStatus.setText(R.string.title_device_status_off);
             }
         });
     }
@@ -342,7 +351,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
             public void onClick(DialogInterface dialog, int which) {
                 String deviceName = editTextDeviceName.getText().toString().trim();
                 mDatabaseReference.child("device").child(mDeviceId).child("name").setValue(deviceName);
-                mTextViewDeviceName.setText(deviceName);
+                mTextViewDeviceStatus.setText(deviceName);
             }
         })
                 .setNegativeButton(getText(R.string.dialog_delete), new DialogInterface.OnClickListener() {
@@ -669,7 +678,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
     private LineDataSet createSet() {
 
-        LineDataSet set = new LineDataSet(null, "KwH");
+        LineDataSet set = new LineDataSet(null, "kWh");
         set.setDrawIcons(false);
 
         int color1 = ResourcesCompat.getColor(getResources(), R.color.colorChart1, null);

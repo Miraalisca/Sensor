@@ -2,7 +2,7 @@
     <string name="app_name">Sensor</string>
     <string name="empty_view_title_text">No Device Here,\nPlece Add First</string>
     <string name="image_description_status_device">Show Device Status ON or OFF</string>
-    <string name="title_start_with_timer">Setup With Timer</string>
+    <string name="title_start_with_timer">Set Device On At</string>
     <string name="button_setup_timer">Setup Timer</string>
     <string name="hint_device_name">Device Name</string>
     <string name="hint_start_date">Start Date</string>
@@ -20,6 +20,8 @@
     <string name="title_setup_with_timer">Use Time</string>
     <string name="title_setup_with_duration">Use Duration</string>
     <string name="chart_no_data_message">No One Data Here</string>
+    <string name="title_device_status_off">Device Off</string>
+    <string name="title_device_status_on">Device On</string>
 
     <array name="mounth">
         <item>January</item>
