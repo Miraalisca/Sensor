@@ -14,7 +14,6 @@ import com.example.user.sensor.R;
 import com.example.user.sensor.model.Device;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Created by Hari Nugroho on 29/11/2017.
@@ -37,7 +36,7 @@ public class DeviceListAdapter extends ArrayAdapter<Device> {
 
         final Device current = getItem(position);
 
-        TextView name = view.findViewById(R.id.text_view_device_name);
+        TextView name = view.findViewById(R.id.text_view_device_status);
         name.setText(current.getDeviceName());
 
         TextView id = view.findViewById(R.id.text_view_device_id);

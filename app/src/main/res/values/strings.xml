@@ -2,16 +2,40 @@
     <string name="app_name">Sensor</string>
     <string name="empty_view_title_text">No Device Here,\nPlece Add First</string>
     <string name="image_description_status_device">Show Device Status ON or OFF</string>
-    <string name="title_start_with_timer">Start With Timer</string>
-    <string name="button_start">Start</string>
+    <string name="title_start_with_timer">Set Device On At</string>
+    <string name="button_setup_timer">Setup Timer</string>
     <string name="hint_device_name">Device Name</string>
+    <string name="hint_start_date">Start Date</string>
+    <string name="hint_finish_date">Finish Date</string>
+    <string name="hint_start_time">Start Time</string>
+    <string name="hint_finish_time">Finish Time</string>
     <string name="hint_device_id">Device ID</string>
+    <string name="dialog_start">Start</string>
     <string name="dialog_cancel">Cancel</string>
     <string name="dialog_submit">Submit</string>
     <string name="dialog_edit">Edit</string>
     <string name="dialog_delete">Delete</string>
     <string name="menu_edit">Edit</string>
-    <string name="menu_add">Add By Text</string>
+    <string name="menu_add">Add With Text</string>
+    <string name="title_setup_with_timer">Use Time</string>
+    <string name="title_setup_with_duration">Use Duration</string>
+    <string name="chart_no_data_message">No One Data Here</string>
+    <string name="title_device_status_off">Device Off</string>
+    <string name="title_device_status_on">Device On</string>
 
+    <array name="mounth">
+        <item>January</item>
+        <item>February</item>
+        <item>March</item>
+        <item>April</item>
+        <item>May</item>
+        <item>June</item>
+        <item>July</item>
+        <item>August</item>
+        <item>September</item>
+        <item>October</item>
+        <item>November</item>
+        <item>December</item>
+    </array>
 
 </resources>

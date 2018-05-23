@@ -1,38 +1,42 @@
 package com.example.user.sensor;
 
-import android.content.BroadcastReceiver;
+import android.app.AlarmManager;
+import android.app.DatePickerDialog;
+import android.app.PendingIntent;
+import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.IntentFilter;
+import android.content.res.Resources;
 import android.graphics.DashPathEffect;
+import android.os.Bundle;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.support.v7.widget.CardView;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.MotionEvent;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.DatePicker;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RadioGroup;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.TimePicker;
 
 import com.example.user.sensor.chart.MyMarkerView;
+import com.example.user.sensor.model.DeviceHistory;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.Legend;
-import com.github.mikephil.charting.components.LimitLine;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
@@ -40,8 +44,6 @@ import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.highlight.Highlight;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
-import com.github.mikephil.charting.listener.ChartTouchListener;
-import com.github.mikephil.charting.listener.OnChartGestureListener;
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -51,42 +53,58 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.text.DateFormat;
+import java.text.DecimalFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 
-public class DetailActivity extends AppCompatActivity implements OnChartGestureListener, OnChartValueSelectedListener {
+public class DetailActivity extends AppCompatActivity implements OnChartValueSelectedListener {
 
+    public static final int ELECTRICITY_PRICES = 1100;
     public static final String ARGS_DEVICE_NAME = "device name";
     public static final String ARGS_DEVICE_ID = "device id";
     public static final String ARGS_PUSH_ID = "push id";
     private static final String TAG = DetailActivity.class.getSimpleName();
 
     private Switch mSwitchStatus;
-    private TextView mTextViewDeviceName;
+    private TextView mTextViewDeviceStatus;
     private LineChart mChart;
-    private Button mButtonStartTimer;
+    private Button mButtonManageTimer;
     private Spinner mSpinnerHour;
     private Spinner mSpinnerMinute;
     private Spinner mSpinnerScond;
-    private TextView mCountDownView;
     private TextView mMessageView;
-    private ImageView mCloseButton;
+    private TextView mMessageView2;
+    private TextView mTimeLineView;
+    private TextView mPrectionPriceView;
+    private TextView mNoDataMessage;
     private CardView mMassageLayout;
+    private EditText mEditTextStartDate;
+    private EditText mEditTextStartTime;
+    private EditText mEditTextFinishDate;
+    private EditText mEditTextFinishTime;
     private LinearLayout mTimePicker;
+    private LinearLayout mDurationPicker;
+    private RadioGroup mRadioGroup;
 
     private String mDeviceName;
     private String mDeviceId;
     private String mPushKey;
+    private float mAverageKwH;
+    private Boolean mIsUseDuration = false;
+    private Boolean mIsInSetup = false;
+    private long mStartTime;
+    private long mFinishTime;
 
     FirebaseDatabase mFirebaseDatabase;
     private FirebaseUser mCurrentUser;
     DatabaseReference mDatabaseReference;
 
-
-    ArrayList<Entry> mValuesKWH;
-    LineDataSet mSetKWH;
-
+    private ArrayList<DeviceHistory> recordKWH;
     private int mHour = 0, mMinute = 0, mScond = 0;
-    private boolean isCountDownFinish = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,45 +116,45 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mDeviceId = intent.getStringExtra(ARGS_DEVICE_ID);
         mPushKey = intent.getStringExtra(ARGS_PUSH_ID);
 
+        getSupportActionBar().setTitle(mDeviceName);
         mSwitchStatus = findViewById(R.id.switch_status);
-        mButtonStartTimer = findViewById(R.id.button_start_timer);
-        mSpinnerHour = findViewById(R.id.spinner_hour);
-        mSpinnerMinute = findViewById(R.id.spinner_minute);
-        mSpinnerScond = findViewById(R.id.spinner_second);
-        mCountDownView = findViewById(R.id.countdown_timer);
-        mTextViewDeviceName = findViewById(R.id.text_view_device_name);
-        mTimePicker = findViewById(R.id.time_picker);
-        mTextViewDeviceName.setText(mDeviceName);
-        mCloseButton = findViewById(R.id.button_close);
+        mButtonManageTimer = findViewById(R.id.button_manage_timer);
+        mNoDataMessage = findViewById(R.id.no_data_massage);
+        mTextViewDeviceStatus = findViewById(R.id.text_view_device_status);
+        mTextViewDeviceStatus.setText(mDeviceName);
+        mTimeLineView = findViewById(R.id.timeline);
+        mPrectionPriceView = findViewById(R.id.prediction_price);
         mMassageLayout = findViewById(R.id.layout_massage);
         mMessageView = findViewById(R.id.view_massage);
+        mMessageView2 = findViewById(R.id.view_massage_2);
+        mChart = findViewById(R.id.line_chart);
 
         mFirebaseDatabase = FirebaseDatabase.getInstance();
         mDatabaseReference = mFirebaseDatabase.getReference();
         mCurrentUser = FirebaseAuth.getInstance().getCurrentUser();
-        mValuesKWH = new ArrayList<>();
 
-        mCountDownView.setVisibility(View.GONE);
+        recordKWH = new ArrayList<>();
 
-        setupSpinner();
-
-        mButtonStartTimer.setOnClickListener(new View.OnClickListener() {
+        mButtonManageTimer.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (isCountDownFinish) {
-                    startTimer();
+                if(mIsInSetup) {
+                    resetAllTimer();
                 } else {
-                    setupUICountDownStop();
-                    saveStatusToDatabase(false);
-                    stopService(new Intent(DetailActivity.this, BroadcastService.class));
+                    showDialogSetupTimer();
                 }
             }
         });
 
         readStatus();
         setStatus();
-        setMassage();
+        readStartAndFinishTimer();
         defineChart();
+        readKWH();
+    }
+
+    private void resetAllTimer() {
+
     }
 
     private void readStatus() {
@@ -146,8 +164,12 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
                 try {
                     boolean status = dataSnapshot.getValue(Boolean.class);
                     mSwitchStatus.setChecked(status);
-                } catch (NullPointerException e){
-
+                    if(status)
+                        mTextViewDeviceStatus.setText(R.string.title_device_status_on);
+                    else
+                        mTextViewDeviceStatus.setText(R.string.title_device_status_off);
+                } catch (NullPointerException e) {
+                    Log.e(TAG, "onDataChange: " + e.getMessage());
                 }
             }
 
@@ -162,7 +184,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mDatabaseReference.child("device").child(mDeviceId).child("massage").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                if(dataSnapshot.exists()) {
+                if (dataSnapshot.exists()) {
                     mMassageLayout.setVisibility(View.VISIBLE);
                     mMessageView.setText(dataSnapshot.getValue(String.class));
                 } else {
@@ -175,11 +197,20 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
 
             }
         });
-
-        mCloseButton.setOnClickListener(new View.OnClickListener() {
+        mDatabaseReference.child("device").child(mDeviceId).child("massage2").addValueEventListener(new ValueEventListener() {
             @Override
-            public void onClick(View v) {
-                mMassageLayout.setVisibility(View.GONE);
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    mMassageLayout.setVisibility(View.VISIBLE);
+                    mMessageView2.setText("You Have Save " + String.valueOf(makeSavingResult()));
+                } else {
+                    mMassageLayout.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
             }
         });
     }
@@ -189,10 +220,10 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean status) {
                 saveStatusToDatabase(status);
-                if (!status && !isCountDownFinish) {
-                    setupUICountDownStop();
-                    saveStatusToDatabase(false);
-                }
+                if(status)
+                    mTextViewDeviceStatus.setText(R.string.title_device_status_on);
+                else
+                    mTextViewDeviceStatus.setText(R.string.title_device_status_off);
             }
         });
     }
@@ -201,11 +232,210 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         mDatabaseReference.child("device").child(mDeviceId).child("status").setValue(status);
     }
 
-    private void setupSpinner() {
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+    }
+
+    private void readKWH() {
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+
+        final DatabaseReference myRef = database.getReference();
+        myRef.keepSynced(true);
+        myRef.child("device").child(mDeviceId).child("value").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                mChart.clearValues();
+                int i = 0;
+                float tempKwh = 0;
+                for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
+                    if (userSnapshot.child("ampere").getValue(Integer.class) != null &&
+                            userSnapshot.child("voltage").getValue(Integer.class) != null &&
+                            userSnapshot.child("start").getValue(Integer.class) != null &&
+                            userSnapshot.child("duration").getValue(Integer.class) != null) {
+                        int ampere = userSnapshot.child("ampere").getValue(Integer.class);
+                        int voltage = userSnapshot.child("voltage").getValue(Integer.class);
+                        int duration = userSnapshot.child("duration").getValue(Integer.class);
+                        long time = userSnapshot.child("start").getValue(Long.class);
+                        float kwh = ((ampere * voltage * duration) / 1000) / 3600;
+//                        float kwh = ampere * voltage * duration;
+                        Log.i(TAG, "onDataChange: " + ampere + "A, " + voltage + "V, " + duration + "S, " + (ampere * voltage * duration) + "watt");
+                        addEntry(time, kwh);
+
+                        DeviceHistory deviceHistory = new DeviceHistory(ampere, duration, time, voltage);
+                        recordKWH.add(deviceHistory);
+                        tempKwh += kwh;
+                        i++;
+                    }
+                }
+
+                if(dataSnapshot.getChildrenCount() == 0){
+                    mNoDataMessage.setVisibility(View.VISIBLE);
+                    mChart.setVisibility(View.GONE);
+                } else {
+                    mNoDataMessage.setVisibility(View.GONE);
+                    mChart.setVisibility(View.VISIBLE);
+                }
+
+                setMassage();
+                mAverageKwH = tempKwh/(i+1);
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                // Getting Post failed, log a message
+                Log.w(TAG, "loadPost:onCancelled", databaseError.toException());
+                // ...
+            }
+        });
+    }
+
+    private void readStartAndFinishTimer(){
+        mDatabaseReference.child("device").child(mDeviceId).addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if(dataSnapshot.child("startTime").exists() && dataSnapshot.child("finishTime").exists()){
+                    if(dataSnapshot.child("startTime").getValue(Long.class)!=0 && dataSnapshot.child("finishTime").getValue(Long.class)!=0) {
+                        mTimeLineView.setVisibility(View.VISIBLE);
+                        mPrectionPriceView.setVisibility(View.VISIBLE);
+
+                        mStartTime = dataSnapshot.child("startTime").getValue(Long.class);
+                        mFinishTime = dataSnapshot.child("finishTime").getValue(Long.class);
+                        mTimeLineView.setText(getTimeComplete(mStartTime) + " - " + getTimeComplete(mFinishTime));
+                        mPrectionPriceView.setText("Rp. " + currencyConverter(setupPrediction(mFinishTime - mStartTime)));
+                    } else {
+                        mPrectionPriceView.setVisibility(View.GONE);
+                        mTimeLineView.setVisibility(View.GONE);
+                    }
+                } else {
+                    mPrectionPriceView.setVisibility(View.GONE);
+                    mTimeLineView.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+    }
+
+    private void showDialogEdit() {
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = this.getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_name, null);
+        final EditText editTextDeviceName = dialogView.findViewById(R.id.edit_text_name);
+        editTextDeviceName.setText(mDeviceName);
+        dialogBuilder.setPositiveButton(getText(R.string.dialog_edit), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                String deviceName = editTextDeviceName.getText().toString().trim();
+                mDatabaseReference.child("device").child(mDeviceId).child("name").setValue(deviceName);
+                mTextViewDeviceStatus.setText(deviceName);
+            }
+        })
+                .setNegativeButton(getText(R.string.dialog_delete), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        mDatabaseReference.child("device").child(mDeviceId).removeValue();
+                        mDatabaseReference.child("user").child(mCurrentUser.getUid()).child(mPushKey).removeValue();
+                        finish();
+                    }
+                })
+                .setNeutralButton(getText(R.string.dialog_cancel), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                    }
+                });
+        dialogBuilder.setView(dialogView);
+        AlertDialog alertDialog = dialogBuilder.create();
+        alertDialog.show();
+    }
+
+    private void showDialogSetupTimer() {
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = this.getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_timer, null);
+        mEditTextStartDate = dialogView.findViewById(R.id.edit_text_start_date);
+        mEditTextStartTime = dialogView.findViewById(R.id.edit_text_start_time);
+        mEditTextFinishDate = dialogView.findViewById(R.id.edit_text_finish_date);
+        mEditTextFinishTime = dialogView.findViewById(R.id.edit_text_finish_time);
+        mSpinnerHour = dialogView.findViewById(R.id.spinner_hour);
+        mSpinnerMinute = dialogView.findViewById(R.id.spinner_minute);
+        mSpinnerScond = dialogView.findViewById(R.id.spinner_second);
+        mRadioGroup = dialogView.findViewById(R.id.radio_group);
+        mTimePicker = dialogView.findViewById(R.id.time_picker);
+        mDurationPicker = dialogView.findViewById(R.id.duration_picker);
+        setupTimePickerListener();
+
+        Log.i(TAG, "showDialogSetupTimer: " + timeStatus(mStartTime, mFinishTime));
+        switch (timeStatus(mStartTime, mFinishTime)){
+            case 0:{
+                mEditTextStartTime.setText(getCurrentTime(120));
+                mEditTextStartDate.setText(getCurrentDate());
+                mEditTextFinishTime.setText(getCurrentTime(3720));
+                mEditTextFinishDate.setText(getCurrentDate());
+                break;
+            }
+            case 3:{
+                mEditTextStartTime.setText(getCurrentTime(120));
+                mEditTextStartDate.setText(getCurrentDate());
+                mEditTextFinishTime.setText(getCurrentTime(3720));
+                mEditTextFinishDate.setText(getCurrentDate());
+                break;
+            }
+            case 1:{
+                mEditTextStartTime.setText(getTime(mStartTime));
+                mEditTextStartDate.setText(getDate(mStartTime));
+                mEditTextFinishTime.setText(getTime(mFinishTime));
+                mEditTextFinishDate.setText(getDate(mFinishTime));
+            }
+            case 2:{
+                mEditTextStartTime.setText(getTime(mStartTime));
+                mEditTextStartDate.setText(getDate(mStartTime));
+                mEditTextFinishTime.setText(getTime(mFinishTime));
+                mEditTextFinishDate.setText(getDate(mFinishTime));
+                break;
+            }
+
+        }
+
+        dialogBuilder.setPositiveButton(getText(R.string.dialog_start), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                long startTime = getUnixTimeStamp(mEditTextStartDate.getText().toString() + ", " + mEditTextStartTime.getText().toString());
+                long finishTime;
+                if(mIsUseDuration) {
+                    finishTime = startTime + (mHour*3600 + mMinute*60 + mScond) * 1000;
+                } else {
+                    finishTime = getUnixTimeStamp(mEditTextFinishDate.getText().toString() + ", " + mEditTextFinishTime.getText().toString());
+                }
+                saveTimeSetupToDatabase(startTime, finishTime);
+                startAlarm(startTime);
+            }
+        })
+                .setNegativeButton(getText(R.string.dialog_cancel), new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                    }
+                });
+        dialogBuilder.setView(dialogView);
+        AlertDialog alertDialog = dialogBuilder.create();
+        alertDialog.show();
+    }
+
+    private void saveTimeSetupToDatabase(long startTime, long finishTime) {
+        mDatabaseReference.child("device").child(mDeviceId).child("startTime").setValue(startTime/1000);
+        mDatabaseReference.child("device").child(mDeviceId).child("finishTime").setValue(finishTime/1000);
+    }
+
+    private void setupTimePickerListener() {
         final String[] arrayHour = {
                 "00", "01", "02", "03", "04", "05", "06", "07", "08", "09",
                 "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
-                "20", "21", "22", "23", "24"
+                "20", "21", "22", "23"
         };
 
         final String[] arrayMinuteAndScond = {
@@ -214,8 +444,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
                 "20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
                 "30", "31", "32", "33", "34", "35", "36", "37", "38", "39",
                 "40", "41", "42", "43", "44", "45", "46", "47", "48", "49",
-                "50", "51", "52", "53", "54", "55", "56", "57", "58", "59",
-                "60"
+                "50", "51", "52", "53", "54", "55", "56", "57", "58", "59"
         };
 
         ArrayAdapter<String> adapterHour = new ArrayAdapter<>(this,
@@ -263,250 +492,90 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
 
             }
         });
-    }
-
-    private void startTimer() {
-        long milisInFuture = ((mHour * 60 * 60) + (mMinute * 60) + mScond) * 1000;
-        if(milisInFuture!=0){
-            setupUICountDownRun();
-            saveStatusToDatabase(true);
-
-            Intent serviceIntent = new Intent(this, BroadcastService.class);
-            serviceIntent.putExtra(BroadcastService.ARG_ID, mPushKey);
-            serviceIntent.putExtra(BroadcastService.ARG_TIMER, milisInFuture);
-            startService(serviceIntent);
-            Log.i(TAG, "Started service");
-        }
-    }
-
-    private void setupUICountDownRun() {
-        mTimePicker.setVisibility(View.GONE);
-        mCountDownView.setVisibility(View.VISIBLE);
-        mButtonStartTimer.setText("Stop");
-        isCountDownFinish = false;
-    }
-
-    private void setupUICountDownStop() {
-        mTimePicker.setVisibility(View.VISIBLE);
-        mCountDownView.setVisibility(View.GONE);
-        mButtonStartTimer.setText("Start");
-        isCountDownFinish = true;
-    }
-
-    private void defineChart() {
-        mChart = findViewById(R.id.line_chart);
-        mChart.setOnChartGestureListener(this);
-        mChart.setOnChartValueSelectedListener(this);
-        mChart.setDrawGridBackground(false);
-
-        mChart.getDescription().setEnabled(false);
-
-        mChart.setTouchEnabled(true);
-
-        mChart.setDragEnabled(true);
-        mChart.setScaleEnabled(true);
-        mChart.setPinchZoom(true);
-
-        MyMarkerView mv = new MyMarkerView(this, R.layout.custom_marker_view);
-        mv.setChartView(mChart); // For bounds control
-        mChart.setMarker(mv); // Set the marker to the chart
-
-        // x-axis limit line
-        LimitLine llXAxis = new LimitLine(10f, "Index 10");
-        llXAxis.setLineWidth(4f);
-        llXAxis.enableDashedLine(10f, 10f, 0f);
-        llXAxis.setLabelPosition(LimitLine.LimitLabelPosition.RIGHT_BOTTOM);
-        llXAxis.setTextSize(10f);
-
-        XAxis xAxis = mChart.getXAxis();
-        xAxis.enableGridDashedLine(10f, 10f, 0f);
-
-        YAxis leftAxis = mChart.getAxisLeft();
-
-        leftAxis.enableGridDashedLine(10f, 10f, 0f);
-        leftAxis.setDrawZeroLine(false);
-        leftAxis.setAxisMinimum(0);
-
-        leftAxis.setDrawLimitLinesBehindData(true);
-
-        mChart.getAxisRight().setEnabled(false);
-        readKWH();
-
-        mChart.animateX(2500);
-        Legend l = mChart.getLegend();
-        l.setForm(Legend.LegendForm.LINE);
-    }
-
-    @Override
-    public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-    }
-
-    private void readKWH() {
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-
-        final DatabaseReference myRef = database.getReference();
-        myRef.keepSynced(true);
-        myRef.child("device").child(mDeviceId).child("value").addValueEventListener(new ValueEventListener() {
+        mEditTextStartDate.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                mValuesKWH.clear();
-                int i = 0;
-                for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
-                    if(userSnapshot.child("ampere").getValue(Integer.class)!= null &&
-                            userSnapshot.child("voltage").getValue(Integer.class) != null &&
-                            userSnapshot.child("duration").getValue(Integer.class) != null) {
-                        int ampere = userSnapshot.child("ampere").getValue(Integer.class);
-                        int voltage = userSnapshot.child("voltage").getValue(Integer.class);
-                        int duration = userSnapshot.child("duration").getValue(Integer.class);
-//                        float kwh = ((ampere * voltage * duration) / 1000) / 60;
-                        float kwh = ampere * voltage * duration;
-                        Log.i(TAG, "onDataChange: " + ampere + "A, " + voltage + "V, " + duration + "S, " + (ampere*voltage*duration) + "watt");
-                        final Entry entry = new Entry(i, kwh);
-                        mValuesKWH.add(entry);
-                        i++;
+            public void onClick(View v) {
+                datePicker(mEditTextStartDate);
+            }
+        });
+        mEditTextStartTime.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                timePicker(mEditTextStartTime);
+            }
+        });
+        mEditTextFinishDate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                datePicker(mEditTextFinishDate);
+            }
+        });
+        mEditTextFinishTime.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                timePicker(mEditTextFinishTime);
+            }
+        });
+
+        mRadioGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+
+            @Override
+            public void onCheckedChanged(RadioGroup group, int checkedId) {
+                switch (checkedId) {
+                    case R.id.radio_setup_with_duration: {
+                        mDurationPicker.setVisibility(View.VISIBLE);
+                        mTimePicker.setVisibility(View.GONE);
+                        mIsUseDuration = true;
+                        break;
+                    }
+                    case R.id.radio_setup_with_timer: {
+                        mDurationPicker.setVisibility(View.GONE);
+                        mTimePicker.setVisibility(View.VISIBLE);
+                        mIsUseDuration = false;
+                        break;
                     }
                 }
-                setData();
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-                // Getting Post failed, log a message
-                Log.w(TAG, "loadPost:onCancelled", databaseError.toException());
-                // ...
             }
         });
     }
 
-    private void setData() {
-        if (mChart.getData() != null &&
-                mChart.getData().getDataSetCount() > 0) {
-            mSetKWH = (LineDataSet) mChart.getData().getDataSetByIndex(0);
-            mSetKWH.setValues(mValuesKWH);
+    private void datePicker(final EditText editText) {
+        Calendar c = Calendar.getInstance();
+        int mYear = c.get(Calendar.YEAR);
+        int mMonth = c.get(Calendar.MONTH);
+        int mDay = c.get(Calendar.DAY_OF_MONTH);
+        Resources res = getResources();
+        final String mBulan[] = res.getStringArray(R.array.mounth); //change with your mounth
 
-            mChart.getData().notifyDataChanged();
-            mChart.notifyDataSetChanged();
-        } else {
-            // create a dataset and give it a type
-            mSetKWH = new LineDataSet(mValuesKWH, "KWH");
-
-            mSetKWH.setDrawIcons(false);
-
-            int color1 = ResourcesCompat.getColor(getResources(), R.color.colorChart1, null);
-            mSetKWH.enableDashedHighlightLine(10f, 5f, 0f);
-            mSetKWH.setColor(color1);
-            mSetKWH.setCircleColor(color1);
-            mSetKWH.setLineWidth(1f);
-            mSetKWH.setCircleRadius(3f);
-            mSetKWH.setDrawCircleHole(false);
-            mSetKWH.setValueTextSize(9f);
-            mSetKWH.setDrawValues(false);
-//            mSetKWH.setDrawFilled(true);
-            mSetKWH.setFormLineWidth(1f);
-            mSetKWH.setFormLineDashEffect(new DashPathEffect(new float[]{10f, 5f}, 0f));
-            mSetKWH.setFormSize(15.f);
-            mSetKWH.setFillColor(color1);
-
-
-            ArrayList<ILineDataSet> dataSets = new ArrayList<ILineDataSet>();
-            dataSets.add(mSetKWH);
-
-            LineData data = new LineData(dataSets);
-            mChart.setData(data);
-        }
-    }
-
-    private void showDialog(){
-        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
-        LayoutInflater inflater = this.getLayoutInflater();
-        View dialogView = inflater.inflate(R.layout.dialog_name, null);
-        final EditText editTextDeviceName = dialogView.findViewById(R.id.edit_text_name);
-        editTextDeviceName.setText(mDeviceName);
-        dialogBuilder.setPositiveButton(getText(R.string.dialog_edit), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        String deviceName = editTextDeviceName.getText().toString().trim();
-                        mDatabaseReference.child("device").child(mDeviceId).child("name").setValue(deviceName);
-                        mTextViewDeviceName.setText(deviceName);
-                    }
-                })
-                .setNegativeButton(getText(R.string.dialog_delete), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        mDatabaseReference.child("device").child(mDeviceId).removeValue();
-                        mDatabaseReference.child("user").child(mCurrentUser.getUid()).child(mPushKey).removeValue();
-                        finish();
-                    }
-                })
-                .setNeutralButton(getText(R.string.dialog_cancel), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-
-                    }
-                });
-        dialogBuilder.setView(dialogView);
-        AlertDialog alertDialog = dialogBuilder.create();
-        alertDialog.show();
-    }
-
-    private BroadcastReceiver br = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            updateGUI(intent); // or whatever method used to update your GUI fields
-        }
-    };
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        registerReceiver(br, new IntentFilter(BroadcastService.COUNTDOWN_BR + mPushKey));
-        Log.i(TAG, "Registered broacast receiver");
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-//        unregisterReceiver(br);
-//        Log.i(TAG, "Unregistered broacast receiver");
-    }
-
-    @Override
-    public void onStop() {
-        try {
-            unregisterReceiver(br);
-        } catch (Exception e) {
-            // Receiver was probably already stopped in onPause()
-        }
-        super.onStop();
-    }
-
-    @Override
-    public void onDestroy() {
-//        stopService(new Intent(this, BroadcastService.class));
-//        Log.i(TAG, "Stopped service");
-        super.onDestroy();
-    }
-
-    int hour = 0;
-    int minute = 0;
-    int second = 0;
-    private void updateGUI(Intent intent) {
-        if (intent.getExtras() != null) {
-            setupUICountDownRun();
-            long millisUntilFinished = intent.getLongExtra("countdown", 0);
-            hour = (int) (millisUntilFinished/1000/3600);
-            minute = (int) (millisUntilFinished/1000%3600/60);
-            second = (int) (millisUntilFinished/1000%3600%60);
-            mCountDownView.setText(String.format("%02d", hour) + ":" + String.format("%02d", minute) + ":" +String.format("%02d", second));
-            if(millisUntilFinished/1000 == 1){
-                setupUICountDownStop();
-                saveStatusToDatabase(false);
+        DatePickerDialog mDatePicker = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
+            public void onDateSet(DatePicker datepicker, int selectedyear, int selectedmonth, int selectedday) {
+                editText.setText(mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear);
             }
-        } else {
-            setupUICountDownStop();
-            saveStatusToDatabase(false);
-        }
+        }, mYear, mMonth, mDay);
+        mDatePicker.show();
+    }
+
+    private void timePicker(final EditText editText) {
+        final Calendar c = Calendar.getInstance();
+        int hour = c.get(Calendar.HOUR_OF_DAY);
+        int minute = c.get(Calendar.MINUTE);
+
+        TimePickerDialog timePickerDialog = new TimePickerDialog(this,
+                new TimePickerDialog.OnTimeSetListener() {
+                    @Override
+                    public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
+                        editText.setText(hourOfDay + ":" + minute);
+                    }
+                }, hour, minute, false);
+        timePickerDialog.show();
+    }
+
+    private float makeSavingResult(){
+        int last = recordKWH.size()-1;
+        float curentKwh = recordKWH.get(last).getAmpere()*recordKWH.get(last).getVoltage()*recordKWH.get(last).getDuration();
+        float lastKwh = recordKWH.get(last-1).getAmpere()*recordKWH.get(last-1).getVoltage()*recordKWH.get(last-1).getDuration();
+        float defferencesKwH = lastKwh - curentKwh * ELECTRICITY_PRICES / 3600;
+        return defferencesKwH;
     }
 
     @Override
@@ -521,66 +590,219 @@ public class DetailActivity extends AppCompatActivity implements OnChartGestureL
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.menu_edit:
-                showDialog();
+                showDialogEdit();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
     }
 
-    @Override
-    public void onChartGestureStart(MotionEvent me, ChartTouchListener.ChartGesture lastPerformedGesture) {
-        Log.i("Gesture", "START, x: " + me.getX() + ", y: " + me.getY());
+
+    private void startAlarm(long startTime) {
+        AlarmManager manager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+
+        Intent startIntent = new Intent(DetailActivity.this, AlarmReceiver.class);
+        startIntent.putExtra("title", mDeviceName);
+        startIntent.putExtra("content", true);
+        startIntent.putExtra("device_id", mDeviceId);
+        PendingIntent startPendingIntent = PendingIntent.getBroadcast(DetailActivity.this, 1, startIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        manager.set(AlarmManager.RTC_WAKEUP, startTime, startPendingIntent);
     }
 
-    @Override
-    public void onChartGestureEnd(MotionEvent me, ChartTouchListener.ChartGesture lastPerformedGesture) {
-        Log.i("Gesture", "END, lastGesture: " + lastPerformedGesture);
-
-        // un-highlight values after the gesture is finished and no single-tap
-        if (lastPerformedGesture != ChartTouchListener.ChartGesture.SINGLE_TAP)
-            mChart.highlightValues(null); // or highlightTouch(null) for callback to onNothingSelected(...)
+    private long getUnixTimeStamp(String time) {
+        Log.i(TAG, "getUnixTimeStamp: " + time);
+        try {
+            Date date = null;
+            DateFormat formatter = new SimpleDateFormat("MMM dd, yyyy, HH:mm");
+            date = formatter.parse(time);
+            Log.i(TAG, "getUnixTimeStamp: " + date.getTime());
+            return date.getTime();
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return 0;
+        }
     }
 
-    @Override
-    public void onChartLongPressed(MotionEvent me) {
-        Log.i("LongPress", "Chart longpressed.");
+    private String getTimeComplete(long unixTimeStamp){
+        Date date = new Date(unixTimeStamp*1000);
+        String dateInText = new SimpleDateFormat("MMM dd, yyyy, HH:mm").format(date);
+        return dateInText;
     }
 
-    @Override
-    public void onChartDoubleTapped(MotionEvent me) {
-        Log.i("DoubleTap", "Chart double-tapped.");
+    private String getTime(long unixTimeStamp){
+        Date date = new Date(unixTimeStamp*1000);
+        String dateInText = new SimpleDateFormat("HH:mm").format(date);
+        return dateInText;
     }
 
-    @Override
-    public void onChartSingleTapped(MotionEvent me) {
-        Log.i("SingleTap", "Chart single-tapped.");
+    private String getDate(long unixTimeStamp){
+        Date date = new Date(unixTimeStamp*1000);
+        String dateInText = new SimpleDateFormat("MMM dd, yyyy").format(date);
+        return dateInText;
     }
 
-    @Override
-    public void onChartFling(MotionEvent me1, MotionEvent me2, float velocityX, float velocityY) {
-        Log.i("Fling", "Chart flinged. VeloX: " + velocityX + ", VeloY: " + velocityY);
+    private float setupPrediction(long duration){
+        Log.i(TAG, "setupPrediction: " + mAverageKwH + " | " + duration + " | " + (float)1100/3600);
+        float price = (mAverageKwH * duration /3600) * ELECTRICITY_PRICES;
+        return price;
     }
 
-    @Override
-    public void onChartScale(MotionEvent me, float scaleX, float scaleY) {
-        Log.i("Scale / Zoom", "ScaleX: " + scaleX + ", ScaleY: " + scaleY);
+    private void defineChart(){
+        mChart.setOnChartValueSelectedListener(this);
+
+        // enable description text
+        mChart.getDescription().setEnabled(false);
+
+        // enable touch gestures
+        mChart.setTouchEnabled(true);
+
+        // enable scaling and dragging
+        mChart.setDragEnabled(true);
+        mChart.setScaleEnabled(true);
+        mChart.setDrawGridBackground(false);
+
+        // if disabled, scaling can be done on x- and y-axis separately
+        mChart.setPinchZoom(true);
+
+        MyMarkerView mv = new MyMarkerView(this, R.layout.custom_marker_view);
+        mv.setChartView(mChart); // For bounds control
+        mChart.setMarker(mv); // Set the marker to the chart
+
+        LineData data = new LineData();
+
+        // add empty data
+        mChart.setData(data);
+//        mChart.setVisibleXRange(1526688000, 1526903268);
+
+        // get the legend (only possible after setting data)
+        Legend l = mChart.getLegend();
+
+        // modify the legend ...
+        l.setForm(Legend.LegendForm.LINE);
+
+
+//        IAxisValueFormatter xAxisFormatter = new DateAxisValueFormatter(1526688000);
+        XAxis xl = mChart.getXAxis();
+        xl.setDrawGridLines(false);
+        xl.setAvoidFirstLastClipping(true);
+        xl.setEnabled(true);
+//        xl.setValueFormatter(xAxisFormatter);
+        xl.setGranularityEnabled(true);
+        xl.setGranularity(1f);
+
+        YAxis leftAxis = mChart.getAxisLeft();
+        leftAxis.setAxisMaximum(100f);
+        leftAxis.setAxisMinimum(0f);
+        leftAxis.setDrawGridLines(true);
+
+        YAxis rightAxis = mChart.getAxisRight();
+        rightAxis.setEnabled(false);
     }
 
-    @Override
-    public void onChartTranslate(MotionEvent me, float dX, float dY) {
-        Log.i("Translate / Move", "dX: " + dX + ", dY: " + dY);
+    private LineDataSet createSet() {
+
+        LineDataSet set = new LineDataSet(null, "kWh");
+        set.setDrawIcons(false);
+
+        int color1 = ResourcesCompat.getColor(getResources(), R.color.colorChart1, null);
+        set.enableDashedHighlightLine(10f, 5f, 0f);
+        set.setColor(color1);
+        set.setCircleColor(color1);
+        set.setLineWidth(1f);
+        set.setCircleRadius(3f);
+        set.setDrawCircleHole(false);
+        set.setValueTextSize(9f);
+        set.setDrawValues(false);
+//            mSetKWH.setDrawFilled(true);
+        set.setFormLineWidth(1f);
+        set.setFormLineDashEffect(new DashPathEffect(new float[]{10f, 5f}, 0f));
+        set.setFormSize(15.f);
+        set.setFillColor(color1);
+        return set;
+    }
+
+    private void addEntry(long time, float value) {
+
+        LineData data = mChart.getData();
+
+        if (data != null) {
+
+            ILineDataSet set = data.getDataSetByIndex(0);
+            // set.addEntry(...); // can be called as well
+
+            if (set == null) {
+                set = createSet();
+                data.addDataSet(set);
+            }
+
+//            data.addEntry(new Entry(time-1526688000, value), 0);
+            data.addEntry(new Entry(set.getEntryCount(), value), 0);
+            data.notifyDataChanged();
+
+            // let the chart know it's data has changed
+            mChart.notifyDataSetChanged();
+
+            // limit the number of visible entries
+            mChart.setVisibleXRangeMaximum(120);
+            // mChart.setVisibleYRange(30, AxisDependency.LEFT);
+
+            // move to the latest entry
+            mChart.moveViewToX(data.getEntryCount());
+
+            // this automatically refreshes the chart (calls invalidate())
+            // mChart.moveViewTo(data.getXValCount()-7, 55f,
+            // AxisDependency.LEFT);
+        }
+    }
+
+    private String currencyConverter(float value){
+        DecimalFormat decimalFormat = new DecimalFormat("#,###.##");
+        return  decimalFormat.format(value);
+    }
+
+    private String getCurrentDate(){
+        DateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy");
+        Date date = new Date();
+        String currentDate = dateFormat.format(date);
+        return currentDate;
+    }
+
+    private String getCurrentTime(long plush){
+        DateFormat dateFormat = new SimpleDateFormat("HH:mm");
+        long currentUnixTime = System.currentTimeMillis();
+        long customUnixTime = currentUnixTime + (plush*1000);
+        Date date = new Date(customUnixTime);
+        return dateFormat.format(date);
+    }
+
+    /**
+     * Function is for check status of current time
+     * @param startTime start device On
+     * @param finishTime finish device (time for device turn Off)
+     * @return 0 if error, 1 if before time set, 2 in range of timer, 3 pass the timer
+     */
+    private int timeStatus(long startTime, long finishTime){
+        long currentUnixTime = System.currentTimeMillis() / 1000L;
+        if(currentUnixTime<startTime){
+            return 1;
+        } else if(currentUnixTime > startTime && currentUnixTime < finishTime){
+            return 2;
+        } else if(currentUnixTime>finishTime){
+            return 3;
+        } else {
+            return 0;
+        }
     }
 
     @Override
     public void onValueSelected(Entry e, Highlight h) {
         Log.i("Entry selected", e.toString());
-        Log.i("LOWHIGH", "low: " + mChart.getLowestVisibleX() + ", high: " + mChart.getHighestVisibleX());
-        Log.i("MIN MAX", "xmin: " + mChart.getXChartMin() + ", xmax: " + mChart.getXChartMax() + ", ymin: " + mChart.getYChartMin() + ", ymax: " + mChart.getYChartMax());
     }
 
     @Override
     public void onNothingSelected() {
         Log.i("Nothing selected", "Nothing selected.");
     }
+
 }

@@ -15,12 +15,18 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import com.example.user.sensor.model.Device;
-import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.zxing.Result;
+
+import java.util.ArrayList;
 
 import me.dm7.barcodescanner.zxing.ZXingScannerView;
 
@@ -31,8 +37,14 @@ import static android.Manifest.permission.CAMERA;
  */
 
 public class ReaderActivity extends AppCompatActivity implements ZXingScannerView.ResultHandler {
+    ArrayList<String> devicesId;
+    ArrayList<String> devicesName;
     public static final int REQUEST_CAMERA = 1;
     public ZXingScannerView scannerView;
+
+    FirebaseDatabase mFirebaseDatabase;
+    FirebaseUser mCurrentUser;
+    DatabaseReference mDatabaseReference;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,16 +53,23 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
         scannerView = new ZXingScannerView(this);
         setContentView(scannerView);
 
+        devicesId = new ArrayList<>();
+        devicesName = new ArrayList<>();
+        mFirebaseDatabase = FirebaseDatabase.getInstance();
+        mDatabaseReference = mFirebaseDatabase.getReference();
+
+        readAllDevice();
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!checkPermission()) {
                 requestPermission();
             }
         }
-
     }
 
     /**
      * checking for camera permission
+     *
      * @return is camera granted
      */
     private boolean checkPermission() {
@@ -66,8 +85,9 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
 
     /**
      * result of request permission
-     * @param requestCode request code
-     * @param permission permission
+     *
+     * @param requestCode  request code
+     * @param permission   permission
      * @param grantResults grant result
      */
     public void onRequestPermissionsResult(int requestCode, @NonNull String permission[], @NonNull int grantResults[]) {
@@ -83,7 +103,8 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
                                             @Override
                                             public void onClick(DialogInterface dialogInterface, int i) {
                                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                                    requestPermission(new String[]{CAMERA}, REQUEST_CAMERA);}
+                                                    requestPermission(new String[]{CAMERA}, REQUEST_CAMERA);
+                                                }
                                             }
 
                                             private void requestPermission(String[] strings, int requestCamera) {
@@ -122,6 +143,7 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
 
     /**
      * showing alert message
+     *
      * @param listener listen for action click
      */
     public void displayAlertMessage(DialogInterface.OnClickListener listener) {
@@ -140,7 +162,8 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
     }
 
     private int session = 0;
-    private void showDialogInputName(final String idDevice){
+
+    private void showDialogInputName(final String idDevice) {
         AlertDialog.Builder builder = new AlertDialog.Builder(ReaderActivity.this);
         // Get the layout inflater
         LayoutInflater inflater = getLayoutInflater();
@@ -167,13 +190,15 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
         builder.show();
     }
 
-    private void saveToDatabase(String idDevice, String deviceName){
-        FirebaseUser firebaseUser = FirebaseAuth.getInstance().getCurrentUser();
-        assert firebaseUser != null;
-        FirebaseDatabase.getInstance().getReference("user").child(firebaseUser.getUid()).push().setValue(idDevice);
-        FirebaseDatabase.getInstance().getReference("device").child(idDevice).child("name").setValue(deviceName);
-        if(session>2) {
-            finish();
+    private void saveToDatabase(String idDevice, String deviceName) {
+        if(devicesId.contains(idDevice)) {
+            mDatabaseReference.child("user").child(mCurrentUser.getUid()).push().setValue(idDevice);
+            mDatabaseReference.child("device").child(idDevice).child("name").setValue(deviceName);
+            if (session > 2) {
+                finish();
+            }
+        } else {
+            Toast.makeText(this, "Id Not Found", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -196,21 +221,21 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
         }
     }
 
-    private void showDialog(){
+    private void showDialog() {
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
         LayoutInflater inflater = this.getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.dialog_manage_device, null);
         final EditText editTextDeviceName = dialogView.findViewById(R.id.input_device_name);
         final EditText editTextDeviceId = dialogView.findViewById(R.id.input_device_id);
         dialogBuilder.setPositiveButton(getText(R.string.dialog_submit), new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        String deviceName = editTextDeviceName.getText().toString().trim();
-                        String deviceID = editTextDeviceId.getText().toString().trim();
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                String deviceName = editTextDeviceName.getText().toString().trim();
+                String deviceID = editTextDeviceId.getText().toString().trim();
 
-                        saveToDatabase(deviceID, deviceName);
-                    }
-                })
+                saveToDatabase(deviceID, deviceName);
+            }
+        })
                 .setNegativeButton(getText(R.string.dialog_cancel), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
@@ -219,5 +244,24 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
         dialogBuilder.setView(dialogView);
         AlertDialog alertDialog = dialogBuilder.create();
         alertDialog.show();
+    }
+
+    private void readAllDevice() {
+
+        mDatabaseReference.child("device").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                devicesId.clear();
+                for (DataSnapshot device : dataSnapshot.getChildren()) {
+                    devicesId.add(device.getKey());
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
     }
 }
