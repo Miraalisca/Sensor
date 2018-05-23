@@ -55,6 +55,7 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.text.DateFormat;
+import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -301,7 +302,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                         long startTime = dataSnapshot.child("startTime").getValue(Long.class);
                         long finishTime = dataSnapshot.child("finishTime").getValue(Long.class);
                         mTimeLineView.setText(getTime(startTime) + " - " + getTime(finishTime));
-                        mPrectionPriceView.setText("Rp. " + String.valueOf(setupPrediction(finishTime - startTime)));
+                        mPrectionPriceView.setText("Rp. " + currencyConverter(setupPrediction(finishTime - startTime)));
                     } else {
                         mPrectionPriceView.setVisibility(View.GONE);
                         mTimeLineView.setVisibility(View.GONE);
@@ -711,6 +712,11 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
             // mChart.moveViewTo(data.getXValCount()-7, 55f,
             // AxisDependency.LEFT);
         }
+    }
+
+    private String currencyConverter(float value){
+        DecimalFormat decimalFormat = new DecimalFormat("#,###.##");
+        return  decimalFormat.format(value);
     }
 
     @Override
