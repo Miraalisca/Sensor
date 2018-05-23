@@ -374,10 +374,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 long startTime = getUnixTimeStamp(mEditTextStartDate.getText().toString() + ", " + mEditTextStartTime.getText().toString());
                 long finishTime;
                 if(mIsUseDuration) {
-                    Log.i(TAG, "onClick: " + mHour + " | " + mMinute + " | " + mScond);
                     finishTime = startTime + (mHour*3600 + mMinute*60 + mScond) * 1000;
-                    Log.i(TAG, "onClick: " + startTime);
-                    Log.i(TAG, "onClick: " + finishTime);
                 } else {
                     finishTime = getUnixTimeStamp(mEditTextFinishDate.getText().toString() + ", " + mEditTextFinishTime.getText().toString());
                 }
@@ -519,7 +516,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
         DatePickerDialog mDatePicker = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
             public void onDateSet(DatePicker datepicker, int selectedyear, int selectedmonth, int selectedday) {
-                editText.setText(selectedday + " " + mBulan[selectedmonth] + " " + selectedyear);
+                editText.setText(mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear);
             }
         }, mYear, mMonth, mDay);
         mDatePicker.show();
@@ -584,7 +581,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         Log.i(TAG, "getUnixTimeStamp: " + time);
         try {
             Date date = null;
-            DateFormat formatter = new SimpleDateFormat("dd MMMMM yyyy, HH:mm");
+            DateFormat formatter = new SimpleDateFormat("MMM dd, yyyy, HH:mm");
             date = formatter.parse(time);
             Log.i(TAG, "getUnixTimeStamp: " + date.getTime());
             return date.getTime();
@@ -596,7 +593,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
     private String getTime(long unixTimeStamp){
         Date date = new Date(unixTimeStamp*1000);
-        String dateInText = new SimpleDateFormat("dd MMM yyyy, HH:mm").format(date);
+        String dateInText = new SimpleDateFormat("MMM dd, yyyy, HH:mm").format(date);
         return dateInText;
     }
 
