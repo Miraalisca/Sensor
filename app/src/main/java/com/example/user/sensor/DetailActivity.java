@@ -35,6 +35,7 @@ import android.widget.TextView;
 import android.widget.TimePicker;
 
 import com.example.user.sensor.chart.MyMarkerView;
+import com.example.user.sensor.model.DeviceHistory;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.Legend;
 import com.github.mikephil.charting.components.XAxis;
@@ -57,11 +58,13 @@ import com.google.firebase.database.ValueEventListener;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 
 public class DetailActivity extends AppCompatActivity implements OnChartValueSelectedListener {
 
+    public static final int ELECTRICITY_PRICES = 1100;
     public static final String ARGS_DEVICE_NAME = "device name";
     public static final String ARGS_DEVICE_ID = "device id";
     public static final String ARGS_PUSH_ID = "push id";
@@ -75,11 +78,14 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     private Spinner mSpinnerMinute;
     private Spinner mSpinnerScond;
     private TextView mMessageView;
+    private TextView mMessageView2;
     private TextView mTimeLineView;
     private TextView mPrectionPriceView;
     private TextView mNoDataMessage;
     private ImageView mCloseButton;
+    private ImageView mCloseButton2;
     private CardView mMassageLayout;
+    private CardView mMassageLayout2;
     private EditText mEditTextStartDate;
     private EditText mEditTextStartTime;
     private EditText mEditTextFinishDate;
@@ -99,6 +105,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     private FirebaseUser mCurrentUser;
     DatabaseReference mDatabaseReference;
 
+    private ArrayList<DeviceHistory> recordKWH;
     private int mHour = 0, mMinute = 0, mScond = 0;
 
     @Override
@@ -119,13 +126,18 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         mTimeLineView = findViewById(R.id.timeline);
         mPrectionPriceView = findViewById(R.id.prediction_price);
         mCloseButton = findViewById(R.id.button_close);
+        mCloseButton2 = findViewById(R.id.button_close_2);
         mMassageLayout = findViewById(R.id.layout_massage);
+        mMassageLayout2 = findViewById(R.id.layout_massage_2);
         mMessageView = findViewById(R.id.view_massage);
+        mMessageView2 = findViewById(R.id.view_massage_2);
         mChart = findViewById(R.id.line_chart);
 
         mFirebaseDatabase = FirebaseDatabase.getInstance();
         mDatabaseReference = mFirebaseDatabase.getReference();
         mCurrentUser = FirebaseAuth.getInstance().getCurrentUser();
+
+        recordKWH = new ArrayList<>();
 
         mButtonManageTimer.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -140,7 +152,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
         readStatus();
         setStatus();
-        setMassage();
         readStartAndFinishTimer();
         defineChart();
         readKWH();
@@ -186,11 +197,35 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
             }
         });
+        mDatabaseReference.child("device").child(mDeviceId).child("massage2").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    mMassageLayout2.setVisibility(View.VISIBLE);
+                    mMessageView2.setText("You Have Save " + String.valueOf(makeSavingResult()));
+                } else {
+                    mMassageLayout2.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
 
         mCloseButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                mDatabaseReference.child("device").child(mDeviceId).child("massage").removeValue();
                 mMassageLayout.setVisibility(View.GONE);
+            }
+        });
+        mCloseButton2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mDatabaseReference.child("device").child(mDeviceId).child("massage2").removeValue();
+                mMassageLayout2.setVisibility(View.GONE);
             }
         });
     }
@@ -238,6 +273,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                         Log.i(TAG, "onDataChange: " + ampere + "A, " + voltage + "V, " + duration + "S, " + (ampere * voltage * duration) + "watt");
                         addEntry(time, kwh);
 
+                        DeviceHistory deviceHistory = new DeviceHistory(ampere, duration, time, voltage);
+                        recordKWH.add(deviceHistory);
                         tempKwh += kwh;
                         i++;
                     }
@@ -251,6 +288,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                     mChart.setVisibility(View.VISIBLE);
                 }
 
+                setMassage();
                 mAverageKwH = tempKwh/(i+1);
             }
 
@@ -512,6 +550,14 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         timePickerDialog.show();
     }
 
+    private float makeSavingResult(){
+        int last = recordKWH.size()-1;
+        float curentKwh = recordKWH.get(last).getAmpere()*recordKWH.get(last).getVoltage()*recordKWH.get(last).getDuration();
+        float lastKwh = recordKWH.get(last-1).getAmpere()*recordKWH.get(last-1).getVoltage()*recordKWH.get(last-1).getDuration();
+        float defferencesKwH = lastKwh - curentKwh * ELECTRICITY_PRICES / 3600;
+        return defferencesKwH;
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
@@ -565,7 +611,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
     private float setupPrediction(long duration){
         Log.i(TAG, "setupPrediction: " + mAverageKwH + " | " + duration + " | " + (float)1100/3600);
-        float price = (mAverageKwH * duration /3600) * 1100;
+        float price = (mAverageKwH * duration /3600) * ELECTRICITY_PRICES;
         return price;
     }
 
