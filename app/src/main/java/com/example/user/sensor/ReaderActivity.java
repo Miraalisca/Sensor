@@ -18,6 +18,7 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import com.example.user.sensor.model.Device;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -57,6 +58,7 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
         devicesName = new ArrayList<>();
         mFirebaseDatabase = FirebaseDatabase.getInstance();
         mDatabaseReference = mFirebaseDatabase.getReference();
+        mCurrentUser = FirebaseAuth.getInstance().getCurrentUser();
 
         readAllDevice();
 

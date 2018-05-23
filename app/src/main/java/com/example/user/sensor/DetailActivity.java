@@ -344,19 +344,17 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         final EditText editTextDeviceName = dialogView.findViewById(R.id.edit_text_name);
         editTextDeviceName.setText(mDeviceName);
         dialogBuilder.setPositiveButton(getText(R.string.dialog_edit), new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                String deviceName = editTextDeviceName.getText().toString().trim();
-                mDatabaseReference.child("device").child(mDeviceId).child("name").setValue(deviceName);
-                mTextViewDeviceStatus.setText(deviceName);
-            }
-        })
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                        String deviceName = editTextDeviceName.getText().toString().trim();
+                        mDatabaseReference.child("device").child(mDeviceId).child("name").setValue(deviceName);
+                        mTextViewDeviceStatus.setText(deviceName);
+                    }
+                })
                 .setNegativeButton(getText(R.string.dialog_delete), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        mDatabaseReference.child("device").child(mDeviceId).removeValue();
-                        mDatabaseReference.child("user").child(mCurrentUser.getUid()).child(mPushKey).removeValue();
-                        finish();
+                        deleteDialog();
                     }
                 })
                 .setNeutralButton(getText(R.string.dialog_cancel), new DialogInterface.OnClickListener() {
@@ -657,6 +655,27 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         Date date = new Date(unixTimeStamp*1000);
         String dateInText = new SimpleDateFormat("MMM dd, yyyy").format(date);
         return dateInText;
+    }
+
+    private void deleteDialog(){
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+        dialogBuilder.setMessage("Are You Sure?");
+        dialogBuilder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+//                        mDatabaseReference.child("device").child(mDeviceId).removeValue();
+                        mDatabaseReference.child("user").child(mCurrentUser.getUid()).child(mPushKey).removeValue();
+                        finish();
+                    }
+                })
+                .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                    }
+                });
+        AlertDialog alertDialog = dialogBuilder.create();
+        alertDialog.show();
     }
 
     private float setupPrediction(long duration){
