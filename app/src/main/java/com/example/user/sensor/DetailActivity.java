@@ -26,7 +26,6 @@ import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.DatePicker;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RadioGroup;
 import android.widget.Spinner;
@@ -92,12 +91,13 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     private RadioGroup mRadioGroup;
 
     private String mDeviceName;
-    private String mDeviceStatus;
     private String mDeviceId;
     private String mPushKey;
     private float mAverageKwH;
     private Boolean mIsUseDuration = false;
     private Boolean mIsInSetup = false;
+    private long mStartTime;
+    private long mFinishTime;
 
     FirebaseDatabase mFirebaseDatabase;
     private FirebaseUser mCurrentUser;
@@ -299,10 +299,10 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                         mTimeLineView.setVisibility(View.VISIBLE);
                         mPrectionPriceView.setVisibility(View.VISIBLE);
 
-                        long startTime = dataSnapshot.child("startTime").getValue(Long.class);
-                        long finishTime = dataSnapshot.child("finishTime").getValue(Long.class);
-                        mTimeLineView.setText(getTime(startTime) + " - " + getTime(finishTime));
-                        mPrectionPriceView.setText("Rp. " + currencyConverter(setupPrediction(finishTime - startTime)));
+                        mStartTime = dataSnapshot.child("startTime").getValue(Long.class);
+                        mFinishTime = dataSnapshot.child("finishTime").getValue(Long.class);
+                        mTimeLineView.setText(getTimeComplete(mStartTime) + " - " + getTimeComplete(mFinishTime));
+                        mPrectionPriceView.setText("Rp. " + currencyConverter(setupPrediction(mFinishTime - mStartTime)));
                     } else {
                         mPrectionPriceView.setVisibility(View.GONE);
                         mTimeLineView.setVisibility(View.GONE);
@@ -368,6 +368,39 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         mTimePicker = dialogView.findViewById(R.id.time_picker);
         mDurationPicker = dialogView.findViewById(R.id.duration_picker);
         setupTimePickerListener();
+
+        Log.i(TAG, "showDialogSetupTimer: " + timeStatus(mStartTime, mFinishTime));
+        switch (timeStatus(mStartTime, mFinishTime)){
+            case 0:{
+                mEditTextStartTime.setText(getCurrentTime(120));
+                mEditTextStartDate.setText(getCurrentDate());
+                mEditTextFinishTime.setText(getCurrentTime(3720));
+                mEditTextFinishDate.setText(getCurrentDate());
+                break;
+            }
+            case 3:{
+                mEditTextStartTime.setText(getCurrentTime(120));
+                mEditTextStartDate.setText(getCurrentDate());
+                mEditTextFinishTime.setText(getCurrentTime(3720));
+                mEditTextFinishDate.setText(getCurrentDate());
+                break;
+            }
+            case 1:{
+                mEditTextStartTime.setText(getTime(mStartTime));
+                mEditTextStartDate.setText(getDate(mStartTime));
+                mEditTextFinishTime.setText(getTime(mFinishTime));
+                mEditTextFinishDate.setText(getDate(mFinishTime));
+            }
+            case 2:{
+                mEditTextStartTime.setText(getTime(mStartTime));
+                mEditTextStartDate.setText(getDate(mStartTime));
+                mEditTextFinishTime.setText(getTime(mFinishTime));
+                mEditTextFinishDate.setText(getDate(mFinishTime));
+                break;
+            }
+
+        }
+
         dialogBuilder.setPositiveButton(getText(R.string.dialog_start), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
@@ -591,9 +624,21 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         }
     }
 
-    private String getTime(long unixTimeStamp){
+    private String getTimeComplete(long unixTimeStamp){
         Date date = new Date(unixTimeStamp*1000);
         String dateInText = new SimpleDateFormat("MMM dd, yyyy, HH:mm").format(date);
+        return dateInText;
+    }
+
+    private String getTime(long unixTimeStamp){
+        Date date = new Date(unixTimeStamp*1000);
+        String dateInText = new SimpleDateFormat("HH:mm").format(date);
+        return dateInText;
+    }
+
+    private String getDate(long unixTimeStamp){
+        Date date = new Date(unixTimeStamp*1000);
+        String dateInText = new SimpleDateFormat("MMM dd, yyyy").format(date);
         return dateInText;
     }
 
@@ -714,6 +759,40 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     private String currencyConverter(float value){
         DecimalFormat decimalFormat = new DecimalFormat("#,###.##");
         return  decimalFormat.format(value);
+    }
+
+    private String getCurrentDate(){
+        DateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy");
+        Date date = new Date();
+        String currentDate = dateFormat.format(date);
+        return currentDate;
+    }
+
+    private String getCurrentTime(long plush){
+        DateFormat dateFormat = new SimpleDateFormat("HH:mm");
+        long currentUnixTime = System.currentTimeMillis();
+        long customUnixTime = currentUnixTime + (plush*1000);
+        Date date = new Date(customUnixTime);
+        return dateFormat.format(date);
+    }
+
+    /**
+     * Function is for check status of current time
+     * @param startTime start device On
+     * @param finishTime finish device (time for device turn Off)
+     * @return 0 if error, 1 if before time set, 2 in range of timer, 3 pass the timer
+     */
+    private int timeStatus(long startTime, long finishTime){
+        long currentUnixTime = System.currentTimeMillis() / 1000L;
+        if(currentUnixTime<startTime){
+            return 1;
+        } else if(currentUnixTime > startTime && currentUnixTime < finishTime){
+            return 2;
+        } else if(currentUnixTime>finishTime){
+            return 3;
+        } else {
+            return 0;
+        }
     }
 
     @Override
