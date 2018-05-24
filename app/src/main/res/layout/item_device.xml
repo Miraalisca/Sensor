@@ -18,10 +18,10 @@
             android:textStyle="bold"
             tools:text="Device Name"/>
         <TextView
-            android:id="@+id/text_view_device_id"
+            android:id="@+id/text_view_savings"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            tools:text="Device Id"/>
+            tools:text="You Have Save : Rp. 2.000"/>
     </LinearLayout>
 
     <ImageView

@@ -87,9 +87,11 @@ public class MainActivity extends AppCompatActivity {
                             try {
                                 String deviceName = dataSnapshot.child("name").getValue(String.class);
                                 boolean status = dataSnapshot.child("status").getValue(boolean.class);
+                                String massage2 = dataSnapshot.child("massage2").getValue(String.class);
 
                                 device.setDeviceName(deviceName);
                                 device.setStatus(status);
+                                device.setMessage2(massage2);
                             } catch (NullPointerException e){
                                 myRef.child("device").child(deviceId).child("status").setValue(false);
                                 device.setStatus(false);

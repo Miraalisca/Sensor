@@ -39,8 +39,8 @@ public class DeviceListAdapter extends ArrayAdapter<Device> {
         TextView name = view.findViewById(R.id.text_view_device_status);
         name.setText(current.getDeviceName());
 
-        TextView id = view.findViewById(R.id.text_view_device_id);
-        id.setText(current.getDeviceId());
+        TextView savings = view.findViewById(R.id.text_view_savings);
+        savings.setText(current.getMessage2());
 
         ImageView status = view.findViewById(R.id.image_view_status);
         if(current.isStatus()){

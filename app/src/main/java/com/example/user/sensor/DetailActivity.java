@@ -196,6 +196,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     }
 
     private void setMassage() {
+        mDatabaseReference.child("device").child(mDeviceId).child("massage2").setValue("You Have Save Rp. " + currencyConverter(makeSavingResult()));
         mDatabaseReference.child("device").child(mDeviceId).child("massage").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
@@ -217,7 +218,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
             public void onDataChange(DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
                     mMassageLayout.setVisibility(View.VISIBLE);
-                    mMessageView2.setText("You Have Save " + String.valueOf(makeSavingResult()));
+                    mMessageView2.setText(dataSnapshot.getValue(String.class));
                 } else {
                     mMassageLayout.setVisibility(View.GONE);
                 }

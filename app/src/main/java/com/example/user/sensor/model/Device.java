@@ -10,6 +10,7 @@ public class Device {
     private String pushKey;
     private String deviceName;
     private String deviceId;
+    private String message2;
     private boolean status;
 
     public Device() {
@@ -26,6 +27,14 @@ public class Device {
 
     public String getDeviceId() {
         return deviceId;
+    }
+
+    public String getMessage2() {
+        return message2;
+    }
+
+    public void setMessage2(String message2) {
+        this.message2 = message2;
     }
 
     public boolean isStatus() {
