@@ -77,6 +77,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     private TextView mTextViewDeviceStatus;
     private LineChart mChart;
     private Button mButtonManageTimer;
+    private Button mButtonShowHistory;
     private Spinner mSpinnerHour;
     private Spinner mSpinnerMinute;
     private Spinner mSpinnerScond;
@@ -93,9 +94,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     private LinearLayout mTimePicker;
     private LinearLayout mDurationPicker;
     private RadioGroup mRadioGroup;
-    private RecyclerView mListHistory;
-
-    private HistoryAdapter mHistoryAdapter;
     private String mDeviceName;
     private String mDeviceId;
     private String mPushKey;
@@ -125,6 +123,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         getSupportActionBar().setTitle(mDeviceName);
         mSwitchStatus = findViewById(R.id.switch_status);
         mButtonManageTimer = findViewById(R.id.button_manage_timer);
+        mButtonShowHistory = findViewById(R.id.button_history);
         mNoDataMessage = findViewById(R.id.no_data_massage);
         mTextViewDeviceStatus = findViewById(R.id.text_view_device_status);
         mTextViewDeviceStatus.setText(mDeviceName);
@@ -134,7 +133,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         mMessageView = findViewById(R.id.view_massage);
         mMessageView2 = findViewById(R.id.view_massage_2);
         mChart = findViewById(R.id.line_chart);
-        mListHistory = findViewById(R.id.list_history);
 
         mFirebaseDatabase = FirebaseDatabase.getInstance();
         mDatabaseReference = mFirebaseDatabase.getReference();
@@ -153,14 +151,14 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
             }
         });
 
-        mListHistory.setHasFixedSize(true);
-
-        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this);
-        mListHistory.setLayoutManager(linearLayoutManager);
-
-        // specify an adapter (see also next example)
-        mHistoryAdapter = new HistoryAdapter(recordKWH, this);
-        mListHistory.setAdapter(mHistoryAdapter);
+        mButtonShowHistory.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intentShowHistory = new Intent(DetailActivity.this, HistoryActivity.class);
+                intentShowHistory.putExtra(HistoryActivity.ARG_DEVICE_ID, mDeviceId);
+                startActivity(intentShowHistory);
+            }
+        });
 
         readStatus();
         setStatus();
@@ -296,7 +294,6 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 }
 
                 setMassage();
-                mHistoryAdapter.notifyDataSetChanged();
                 mAverageKwH = tempKwh/(i+1);
             }
 
@@ -715,8 +712,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
     private void deleteDialog(){
         AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
-        dialogBuilder.setMessage("Are You Sure?");
-        dialogBuilder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+        dialogBuilder.setMessage("Delete this device?");
+        dialogBuilder.setPositiveButton("Delete", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
 //                        mDatabaseReference.child("device").child(mDeviceId).removeValue();
@@ -724,7 +721,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                         finish();
                     }
                 })
-                .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
 

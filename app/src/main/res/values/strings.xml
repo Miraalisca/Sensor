@@ -22,6 +22,7 @@
     <string name="chart_no_data_message">No One Data Here</string>
     <string name="title_device_status_off">Device Off</string>
     <string name="title_device_status_on">Device On</string>
+    <string name="button_show_history">Show History</string>
 
     <array name="mounth">
         <item>January</item>
