@@ -34,6 +34,7 @@ import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.TimePicker;
+import android.widget.Toast;
 
 import com.example.user.sensor.adapter.HistoryAdapter;
 import com.example.user.sensor.chart.MyMarkerView;
@@ -319,8 +320,22 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
                         mStartTime = dataSnapshot.child("startTime").getValue(Long.class);
                         mFinishTime = dataSnapshot.child("finishTime").getValue(Long.class);
-                        mTimeLineView.setText(getTimeComplete(mStartTime) + " - " + getTimeComplete(mFinishTime));
-                        mPrectionPriceView.setText("Rp. " + currencyConverter(setupPrediction(mFinishTime - mStartTime)));
+
+                        switch (timeStatus(mStartTime, mFinishTime)){
+                            case 1:{
+                                mTimeLineView.setText("Device will On at\n" + getTimeComplete(mStartTime) + " - " + getTimeComplete(mFinishTime));
+                                break;
+                            }
+                            case 2:{
+                                mTimeLineView.setText("Device is on with timer\n" + getTimeComplete(mStartTime) + " - " + getTimeComplete(mFinishTime));
+                                break;
+                            }
+                            case 3:{
+                                mTimeLineView.setText("Device last time setup at\n" + getTimeComplete(mStartTime) + " - " + getTimeComplete(mFinishTime));
+                                break;
+                            }
+                        }
+                        mPrectionPriceView.setText("And you spend Rp. " + currencyConverter(setupPrediction(mFinishTime - mStartTime)));
                     } else {
                         mPrectionPriceView.setVisibility(View.GONE);
                         mTimeLineView.setVisibility(View.GONE);
@@ -565,7 +580,13 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
         DatePickerDialog mDatePicker = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
             public void onDateSet(DatePicker datepicker, int selectedyear, int selectedmonth, int selectedday) {
-                editText.setText(mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear);
+                long selectedUnixTimeStamp = getUnixTimeStampDate(mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear);
+                long currentUnixTime = System.currentTimeMillis();                
+                if(selectedUnixTimeStamp > currentUnixTime) {
+                    editText.setText(mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear);
+                } else {
+                    Toast.makeText(DetailActivity.this, "Please choose a time to come", Toast.LENGTH_SHORT).show();
+                }
             }
         }, mYear, mMonth, mDay);
         mDatePicker.show();
@@ -580,7 +601,13 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 new TimePickerDialog.OnTimeSetListener() {
                     @Override
                     public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
-                        editText.setText(hourOfDay + ":" + minute);
+                        long selectedUnixTimeStamp = getUnixTimeStampTime(hourOfDay + ":" + minute);
+                        long currentUnixTime = System.currentTimeMillis();
+                        if(selectedUnixTimeStamp > currentUnixTime) {
+                            editText.setText(hourOfDay + ":" + minute);
+                        } else {
+                            Toast.makeText(DetailActivity.this, "Please choose a time to come", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 }, hour, minute, false);
         timePickerDialog.show();
@@ -631,6 +658,34 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         try {
             Date date = null;
             DateFormat formatter = new SimpleDateFormat("MMM dd, yyyy, HH:mm");
+            date = formatter.parse(time);
+            Log.i(TAG, "getUnixTimeStamp: " + date.getTime());
+            return date.getTime();
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    private long getUnixTimeStampDate(String time) {
+        Log.i(TAG, "getUnixTimeStamp: " + time);
+        try {
+            Date date = null;
+            DateFormat formatter = new SimpleDateFormat("MMM dd, yyyy");
+            date = formatter.parse(time);
+            Log.i(TAG, "getUnixTimeStamp: " + date.getTime());
+            return date.getTime();
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    private long getUnixTimeStampTime(String time) {
+        Log.i(TAG, "getUnixTimeStamp: " + time);
+        try {
+            Date date = null;
+            DateFormat formatter = new SimpleDateFormat("HH:mm");
             date = formatter.parse(time);
             Log.i(TAG, "getUnixTimeStamp: " + date.getTime());
             return date.getTime();
