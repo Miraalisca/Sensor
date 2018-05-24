@@ -195,7 +195,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     }
 
     private void setMassage() {
-        mDatabaseReference.child("device").child(mDeviceId).child("massage2").setValue("You Have Save Rp. " + currencyConverter(makeSavingResult()));
+        mDatabaseReference.child("device").child(mDeviceId).child("massage2").setValue("You have save Rp. " + currencyConverter(makeSavingResult()) + " from previous usage");
         mDatabaseReference.child("device").child(mDeviceId).child("massage").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
@@ -361,7 +361,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 public void onClick(DialogInterface dialog, int which) {
                         String deviceName = editTextDeviceName.getText().toString().trim();
                         mDatabaseReference.child("device").child(mDeviceId).child("name").setValue(deviceName);
-                        mTextViewDeviceStatus.setText(deviceName);
+                        getSupportActionBar().setTitle(deviceName);
                     }
                 })
                 .setNegativeButton(getText(R.string.dialog_delete), new DialogInterface.OnClickListener() {
