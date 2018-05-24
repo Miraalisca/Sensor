@@ -62,6 +62,7 @@
                     android:id="@+id/view_massage_2"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:paddingTop="16dp"
                     tools:text="Automaticaly ON in 20.00"/>
             </LinearLayout>
 

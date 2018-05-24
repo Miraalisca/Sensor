@@ -67,7 +67,6 @@ public class LoginActivity extends AppCompatActivity implements GoogleApiClient.
 
     }
 
-
     @Override
     public void onStart() {
         super.onStart();
@@ -80,7 +79,6 @@ public class LoginActivity extends AppCompatActivity implements GoogleApiClient.
         Intent signInIntent = Auth.GoogleSignInApi.getSignInIntent(mGoogleApiClient);
         startActivityForResult(signInIntent, RC_SIGN_IN);
     }
-
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
