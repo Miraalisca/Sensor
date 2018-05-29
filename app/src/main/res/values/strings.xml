@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Sensor</string>
+    <string name="app_name">PoCoPa</string>
     <string name="empty_view_title_text">No Device Here,\nPlece Add First</string>
     <string name="image_description_status_device">Show Device Status ON or OFF</string>
     <string name="title_start_with_timer">Set Device On At</string>

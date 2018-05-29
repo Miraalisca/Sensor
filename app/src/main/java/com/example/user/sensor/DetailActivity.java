@@ -97,7 +97,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     private String mDeviceName;
     private String mDeviceId;
     private String mPushKey;
-    private float mAverageKwH;
+    private float mAverageAmpere;
+    private float mAverageVoltage;
     private Boolean mIsUseDuration = false;
     private Boolean mIsInSetup = false;
     private long mStartTime;
@@ -263,7 +264,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 mChart.clearValues();
                 recordKWH.clear();
                 int i = 0;
-                float tempKwh = 0;
+                float tempAmpere = 0;
+                float tempVoltage = 0;
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
                     if (userSnapshot.child("ampere").getValue(Integer.class) != null &&
                             userSnapshot.child("voltage").getValue(Integer.class) != null &&
@@ -280,7 +282,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
                         DeviceHistory deviceHistory = new DeviceHistory(ampere, duration, time, voltage);
                         recordKWH.add(deviceHistory);
-                        tempKwh += kwh;
+                        tempAmpere += ampere;
+                        tempVoltage += voltage;
                         i++;
                     }
                 }
@@ -294,7 +297,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 }
 
                 setMassage();
-                mAverageKwH = tempKwh/(i+1);
+                mAverageAmpere = tempAmpere/(i+1);
+                mAverageVoltage = tempVoltage/(i+1);
             }
 
             @Override
@@ -577,8 +581,10 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
         DatePickerDialog mDatePicker = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
             public void onDateSet(DatePicker datepicker, int selectedyear, int selectedmonth, int selectedday) {
-                long selectedUnixTimeStamp = getUnixTimeStampDate(mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear);
-                long currentUnixTime = System.currentTimeMillis();                
+                long selectedUnixTimeStamp = getUnixTimeStamp(mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear + ", " + getCurrentTime(0));
+                long currentUnixTime = System.currentTimeMillis();
+                Log.i(TAG, "onDateSet: " + mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear + ", " + getCurrentTime(0));
+                Log.i(TAG, "onDateSet: " + selectedUnixTimeStamp + " " + currentUnixTime);
                 if(selectedUnixTimeStamp > currentUnixTime) {
                     editText.setText(mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear);
                 } else {
@@ -598,7 +604,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 new TimePickerDialog.OnTimeSetListener() {
                     @Override
                     public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
-                        long selectedUnixTimeStamp = getUnixTimeStampTime(hourOfDay + ":" + minute);
+                        long selectedUnixTimeStamp = getUnixTimeStamp(getCurrentDate() + ", " + hourOfDay + ":" + minute);
                         long currentUnixTime = System.currentTimeMillis();
                         if(selectedUnixTimeStamp > currentUnixTime) {
                             editText.setText(hourOfDay + ":" + minute);
@@ -611,10 +617,13 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     }
 
     private float makeSavingResult(){
-        int last = recordKWH.size()-1;
-        float curentKwh = recordKWH.get(last).getAmpere()*recordKWH.get(last).getVoltage()*recordKWH.get(last).getDuration();
-        float lastKwh = recordKWH.get(last-1).getAmpere()*recordKWH.get(last-1).getVoltage()*recordKWH.get(last-1).getDuration();
-        float defferencesKwH = lastKwh - curentKwh * ELECTRICITY_PRICES / 3600;
+        float defferencesKwH = 0;
+        if(recordKWH.size()!=0) {
+            int last = recordKWH.size() - 1;
+            float curentKwh = recordKWH.get(last).getAmpere() * recordKWH.get(last).getVoltage() * recordKWH.get(last).getDuration();
+            float lastKwh = recordKWH.get(last - 1).getAmpere() * recordKWH.get(last - 1).getVoltage() * recordKWH.get(last - 1).getDuration();
+            defferencesKwH = lastKwh - curentKwh * ELECTRICITY_PRICES / 3600;
+        }
         return defferencesKwH;
     }
 
@@ -654,35 +663,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         Log.i(TAG, "getUnixTimeStamp: " + time);
         try {
             Date date = null;
-            DateFormat formatter = new SimpleDateFormat("MMM dd, yyyy, HH:mm");
-            date = formatter.parse(time);
-            Log.i(TAG, "getUnixTimeStamp: " + date.getTime());
-            return date.getTime();
-        } catch (ParseException e) {
-            e.printStackTrace();
-            return 0;
-        }
-    }
-
-    private long getUnixTimeStampDate(String time) {
-        Log.i(TAG, "getUnixTimeStamp: " + time);
-        try {
-            Date date = null;
-            DateFormat formatter = new SimpleDateFormat("MMM dd, yyyy");
-            date = formatter.parse(time);
-            Log.i(TAG, "getUnixTimeStamp: " + date.getTime());
-            return date.getTime();
-        } catch (ParseException e) {
-            e.printStackTrace();
-            return 0;
-        }
-    }
-
-    private long getUnixTimeStampTime(String time) {
-        Log.i(TAG, "getUnixTimeStamp: " + time);
-        try {
-            Date date = null;
-            DateFormat formatter = new SimpleDateFormat("HH:mm");
+            DateFormat formatter = new SimpleDateFormat("MMM dd, yyyy, h:mm a");
             date = formatter.parse(time);
             Log.i(TAG, "getUnixTimeStamp: " + date.getTime());
             return date.getTime();
@@ -694,13 +675,13 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
     private String getTimeComplete(long unixTimeStamp){
         Date date = new Date(unixTimeStamp*1000);
-        String dateInText = new SimpleDateFormat("MMM dd, yyyy, HH:mm").format(date);
+        String dateInText = new SimpleDateFormat("MMM dd, yyyy, h:mm a").format(date);
         return dateInText;
     }
 
     private String getTime(long unixTimeStamp){
         Date date = new Date(unixTimeStamp*1000);
-        String dateInText = new SimpleDateFormat("HH:mm").format(date);
+        String dateInText = new SimpleDateFormat("h:mm a").format(date);
         return dateInText;
     }
 
@@ -732,8 +713,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     }
 
     private float setupPrediction(long duration){
-        Log.i(TAG, "setupPrediction: " + mAverageKwH + " | " + duration + " | " + (float)1100/3600);
-        float price = (mAverageKwH * duration /3600) * ELECTRICITY_PRICES;
+        float price = (mAverageAmpere * mAverageVoltage * duration / 1000 /3600) * ELECTRICITY_PRICES;
         return price;
     }
 
@@ -858,7 +838,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     }
 
     private String getCurrentTime(long plush){
-        DateFormat dateFormat = new SimpleDateFormat("HH:mm");
+        DateFormat dateFormat = new SimpleDateFormat("h:mm a");
         long currentUnixTime = System.currentTimeMillis();
         long customUnixTime = currentUnixTime + (plush*1000);
         Date date = new Date(customUnixTime);
