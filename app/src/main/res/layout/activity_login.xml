@@ -8,11 +8,15 @@
     android:orientation="vertical"
     android:gravity="center">
 
+    <ImageView
+        android:layout_width="170dp"
+        android:layout_height="170dp"
+        android:src="@drawable/login_icon"/>
+
     <com.google.android.gms.common.SignInButton
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/sign_in_button"
-        android:paddingTop="350dp"
         android:layout_gravity="center"/>
 
 </LinearLayout>

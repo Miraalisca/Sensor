@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">PoCoPa</string>
-    <string name="empty_view_title_text">No Device Here,\nPlece Add First</string>
+    <string name="empty_view_title_text">No Device Here,\nPlease Add First</string>
     <string name="image_description_status_device">Show Device Status ON or OFF</string>
     <string name="title_start_with_timer">Set Device On At</string>
     <string name="button_setup_timer">Setup Timer</string>
@@ -17,6 +17,7 @@
     <string name="dialog_delete">Delete</string>
     <string name="menu_edit">Edit</string>
     <string name="menu_add">Add With Text</string>
+    <string name="menu_logout">Logout</string>
     <string name="title_setup_with_timer">Use Time</string>
     <string name="title_setup_with_duration">Use Duration</string>
     <string name="chart_no_data_message">No One Data Here</string>

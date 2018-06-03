@@ -5,6 +5,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.design.widget.TextInputLayout;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
@@ -15,6 +16,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.user.sensor.model.Device;
@@ -38,8 +40,9 @@ import static android.Manifest.permission.CAMERA;
  */
 
 public class ReaderActivity extends AppCompatActivity implements ZXingScannerView.ResultHandler {
-    ArrayList<String> devicesId;
-    ArrayList<String> devicesName;
+    ArrayList<String> allDevicesId;
+    ArrayList<String> allDevicesName;
+    ArrayList<String> userDevicesId;
     public static final int REQUEST_CAMERA = 1;
     public ZXingScannerView scannerView;
 
@@ -54,13 +57,14 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
         scannerView = new ZXingScannerView(this);
         setContentView(scannerView);
 
-        devicesId = new ArrayList<>();
-        devicesName = new ArrayList<>();
+        userDevicesId = new ArrayList<>();
+        allDevicesId = new ArrayList<>();
+        allDevicesName = new ArrayList<>();
         mFirebaseDatabase = FirebaseDatabase.getInstance();
         mDatabaseReference = mFirebaseDatabase.getReference();
         mCurrentUser = FirebaseAuth.getInstance().getCurrentUser();
 
-        readAllDevice();
+        readDevice();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!checkPermission()) {
@@ -163,24 +167,49 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
         showDialogInputName(idDevice);
     }
 
-    private int session = 0;
-
     private void showDialogInputName(final String idDevice) {
         AlertDialog.Builder builder = new AlertDialog.Builder(ReaderActivity.this);
         // Get the layout inflater
         LayoutInflater inflater = getLayoutInflater();
 
-        View viewDialog = inflater.inflate(R.layout.dialog_name, null);
-        final EditText editTextName = viewDialog.findViewById(R.id.edit_text_name);
-        builder.setTitle(idDevice);
+        View viewDialog = inflater.inflate(R.layout.dialog_add_4_name, null);
+        final TextView textView1 = viewDialog.findViewById(R.id.view_id_1);
+        final TextView textView2 = viewDialog.findViewById(R.id.view_id_2);
+        final TextView textView3 = viewDialog.findViewById(R.id.view_id_3);
+        final TextView textView4 = viewDialog.findViewById(R.id.view_id_4);
+
+        final EditText editTextName1 = viewDialog.findViewById(R.id.edit_text_name_1);
+        final EditText editTextName2 = viewDialog.findViewById(R.id.edit_text_name_2);
+        final EditText editTextName3 = viewDialog.findViewById(R.id.edit_text_name_3);
+        final EditText editTextName4 = viewDialog.findViewById(R.id.edit_text_name_4);
+
+        final TextInputLayout textInputLayout1 = viewDialog.findViewById(R.id.input_layout_device_name_1);
+        final TextInputLayout textInputLayout2 = viewDialog.findViewById(R.id.input_layout_device_name_2);
+        final TextInputLayout textInputLayout3 = viewDialog.findViewById(R.id.input_layout_device_name_3);
+        final TextInputLayout textInputLayout4 = viewDialog.findViewById(R.id.input_layout_device_name_4);
+
+        final String idDevice2 = String.valueOf(Long.valueOf(idDevice) + 1);
+        final String idDevice3 = String.valueOf(Long.valueOf(idDevice) + 2);
+        final String idDevice4 = String.valueOf(Long.valueOf(idDevice) + 3);
+
+        textView1.setText(idDevice);
+        textView2.setText(idDevice2);
+        textView3.setText(idDevice3);
+        textView4.setText(idDevice4);
+
         builder.setView(viewDialog)
                 .setPositiveButton(R.string.dialog_submit, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int id) {
-                        String deviceName = editTextName.getText().toString().trim();
-                        saveToDatabase(idDevice, deviceName);
-                        showDialogInputName(String.valueOf(Long.valueOf(idDevice) + 1));
-                        session++;
+                        String deviceName1 = editTextName1.getText().toString().trim();
+                        String deviceName2 = editTextName2.getText().toString().trim();
+                        String deviceName3 = editTextName3.getText().toString().trim();
+                        String deviceName4 = editTextName4.getText().toString().trim();
+                        saveToDatabase(idDevice, deviceName1, textInputLayout1);
+                        saveToDatabase(idDevice2, deviceName2, textInputLayout2);
+                        saveToDatabase(idDevice3, deviceName3, textInputLayout3);
+                        saveToDatabase(idDevice4, deviceName4, textInputLayout4);
+                        finish();
                     }
                 })
                 .setNegativeButton(R.string.dialog_cancel, new DialogInterface.OnClickListener() {
@@ -192,15 +221,14 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
         builder.show();
     }
 
-    private void saveToDatabase(String idDevice, String deviceName) {
-        if(devicesId.contains(idDevice)) {
-            mDatabaseReference.child("user").child(mCurrentUser.getUid()).push().setValue(idDevice);
-            mDatabaseReference.child("device").child(idDevice).child("name").setValue(deviceName);
-            if (session > 2) {
-                finish();
+    private void saveToDatabase(String idDevice, String deviceName, TextInputLayout textInputLayout) {
+        if(allDevicesId.contains(idDevice)) {
+            if(!userDevicesId.contains(idDevice)) {
+                mDatabaseReference.child("user").child(mCurrentUser.getUid()).push().setValue(idDevice);
             }
+            mDatabaseReference.child("device").child(idDevice).child("name").setValue(deviceName);
         } else {
-            Toast.makeText(this, "Id Not Found", Toast.LENGTH_SHORT).show();
+            textInputLayout.setError("Please check again your id");
         }
     }
 
@@ -229,13 +257,15 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
         View dialogView = inflater.inflate(R.layout.dialog_manage_device, null);
         final EditText editTextDeviceName = dialogView.findViewById(R.id.input_device_name);
         final EditText editTextDeviceId = dialogView.findViewById(R.id.input_device_id);
+        final TextInputLayout textInputLayout = dialogView.findViewById(R.id.input_layout_device_id);
         dialogBuilder.setPositiveButton(getText(R.string.dialog_submit), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 String deviceName = editTextDeviceName.getText().toString().trim();
                 String deviceID = editTextDeviceId.getText().toString().trim();
 
-                saveToDatabase(deviceID, deviceName);
+                saveToDatabase(deviceID, deviceName, textInputLayout);
+                finish();
             }
         })
                 .setNegativeButton(getText(R.string.dialog_cancel), new DialogInterface.OnClickListener() {
@@ -248,14 +278,31 @@ public class ReaderActivity extends AppCompatActivity implements ZXingScannerVie
         alertDialog.show();
     }
 
-    private void readAllDevice() {
+    private void readDevice() {
 
         mDatabaseReference.child("device").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                devicesId.clear();
+                allDevicesId.clear();
+                allDevicesName.clear();
                 for (DataSnapshot device : dataSnapshot.getChildren()) {
-                    devicesId.add(device.getKey());
+                    allDevicesId.add(device.getKey());
+                    allDevicesName.add(device.child("name").getValue(String.class));
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+        mDatabaseReference.child("user").child(mCurrentUser.getUid()).addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                userDevicesId.clear();
+                for (DataSnapshot device : dataSnapshot.getChildren()) {
+                    userDevicesId.add(device.getValue(String.class));
                 }
             }
 
