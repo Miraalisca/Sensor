@@ -60,6 +60,7 @@ public class HistoryActivity extends AppCompatActivity {
         readKWH();
     }
 
+    // 0 usage, 1 daily, 2 monthly
     private void readKWH() {
         mDatabaseReference.keepSynced(true);
         mDatabaseReference.child("device").child(mDeviceId).child("value").orderByChild("start").addValueEventListener(new ValueEventListener() {
@@ -67,7 +68,8 @@ public class HistoryActivity extends AppCompatActivity {
             public void onDataChange(DataSnapshot dataSnapshot) {
                 recordKWH.clear();
                 for (DataSnapshot snapshot : dataSnapshot.getChildren()){
-                    recordKWH.add(snapshot.getValue(DeviceHistory.class));
+                    DeviceHistory deviceHistory = snapshot.getValue(DeviceHistory.class);
+                    recordKWH.add(deviceHistory);
                 }
                 Collections.reverse(recordKWH);
                 mHistoryAdapter.notifyDataSetChanged();

@@ -618,7 +618,7 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
     private float makeSavingResult(){
         float defferencesKwH = 0;
-        if(recordKWH.size()!=0) {
+        if(recordKWH.size()>1) {
             int last = recordKWH.size() - 1;
             float curentKwh = recordKWH.get(last).getAmpere() * recordKWH.get(last).getVoltage() * recordKWH.get(last).getDuration();
             float lastKwh = recordKWH.get(last - 1).getAmpere() * recordKWH.get(last - 1).getVoltage() * recordKWH.get(last - 1).getDuration();
