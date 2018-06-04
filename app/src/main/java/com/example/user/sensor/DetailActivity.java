@@ -444,7 +444,8 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                     finishTime = getUnixTimeStamp(mEditTextFinishDate.getText().toString() + ", " + mEditTextFinishTime.getText().toString());
                 }
                 saveTimeSetupToDatabase(startTime, finishTime);
-                startAlarm(startTime);
+                startAlarm(startTime, true);
+                startAlarm(finishTime, false);
             }
         })
                 .setNegativeButton(getText(R.string.dialog_cancel), new DialogInterface.OnClickListener() {
@@ -585,11 +586,11 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 long currentUnixTime = System.currentTimeMillis();
                 Log.i(TAG, "onDateSet: " + mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear + ", " + getCurrentTime(0));
                 Log.i(TAG, "onDateSet: " + selectedUnixTimeStamp + " " + currentUnixTime);
-                if(selectedUnixTimeStamp > currentUnixTime) {
+//                if(selectedUnixTimeStamp > currentUnixTime) {
                     editText.setText(mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear);
-                } else {
-                    Toast.makeText(DetailActivity.this, "Please choose a time to come", Toast.LENGTH_SHORT).show();
-                }
+//                } else {
+//                    Toast.makeText(DetailActivity.this, "Please choose a time to come", Toast.LENGTH_SHORT).show();
+//                }
             }
         }, mYear, mMonth, mDay);
         mDatePicker.show();
@@ -606,11 +607,11 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                     public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
                         long selectedUnixTimeStamp = getUnixTimeStamp(getCurrentDate() + ", " + hourOfDay + ":" + minute);
                         long currentUnixTime = System.currentTimeMillis();
-                        if(selectedUnixTimeStamp > currentUnixTime) {
+//                        if(selectedUnixTimeStamp > currentUnixTime) {
                             editText.setText(hourOfDay + ":" + minute);
-                        } else {
-                            Toast.makeText(DetailActivity.this, "Please choose a time to come", Toast.LENGTH_SHORT).show();
-                        }
+//                        } else {
+//                            Toast.makeText(DetailActivity.this, "Please choose a time to come", Toast.LENGTH_SHORT).show();
+//                        }
                     }
                 }, hour, minute, false);
         timePickerDialog.show();
@@ -647,16 +648,24 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
     }
 
 
-    private void startAlarm(long startTime) {
-        AlarmManager manager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+    private void startAlarm(long time, boolean isStart) {
+        Intent intent = new Intent(this, AlarmReceiver.class);
 
-        Intent startIntent = new Intent(DetailActivity.this, AlarmReceiver.class);
-        startIntent.putExtra("title", mDeviceName);
-        startIntent.putExtra("content", true);
-        startIntent.putExtra("device_id", mDeviceId);
-        PendingIntent startPendingIntent = PendingIntent.getBroadcast(DetailActivity.this, 1, startIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        intent.putExtra("title", mDeviceName);
+        intent.putExtra("content", isStart);
+        intent.putExtra("device_id", mDeviceId);
 
-        manager.set(AlarmManager.RTC_WAKEUP, startTime, startPendingIntent);
+
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+
+        int mNotificationId = Integer.parseInt(mDeviceId.substring(9, 12));
+        if(isStart){
+            mNotificationId += 10000;
+        } else {
+            mNotificationId += 20000;
+        }
+        alarmManager.set(AlarmManager.RTC_WAKEUP, time,
+                PendingIntent.getBroadcast(this, mNotificationId, intent, PendingIntent.FLAG_UPDATE_CURRENT));
     }
 
     private long getUnixTimeStamp(String time) {
