@@ -57,8 +57,10 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.sql.Time;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
+import java.text.Format;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -582,17 +584,10 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
 
         DatePickerDialog mDatePicker = new DatePickerDialog(this, new DatePickerDialog.OnDateSetListener() {
             public void onDateSet(DatePicker datepicker, int selectedyear, int selectedmonth, int selectedday) {
-                long selectedUnixTimeStamp = getUnixTimeStamp(mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear + ", " + getCurrentTime(0));
-                long currentUnixTime = System.currentTimeMillis();
-                Log.i(TAG, "onDateSet: " + mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear + ", " + getCurrentTime(0));
-                Log.i(TAG, "onDateSet: " + selectedUnixTimeStamp + " " + currentUnixTime);
-//                if(selectedUnixTimeStamp > currentUnixTime) {
-                    editText.setText(mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear);
-//                } else {
-//                    Toast.makeText(DetailActivity.this, "Please choose a time to come", Toast.LENGTH_SHORT).show();
-//                }
+                editText.setText(mBulan[selectedmonth] + " " + selectedday + ", " + selectedyear);
             }
         }, mYear, mMonth, mDay);
+        mDatePicker.getDatePicker().setMinDate(c.getTimeInMillis());
         mDatePicker.show();
     }
 
@@ -605,13 +600,14 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
                 new TimePickerDialog.OnTimeSetListener() {
                     @Override
                     public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
-                        long selectedUnixTimeStamp = getUnixTimeStamp(getCurrentDate() + ", " + hourOfDay + ":" + minute);
+                        long selectedUnixTimeStamp = getUnixTimeStamp(getCurrentDate() + ", " + getTime(hourOfDay, minute));
                         long currentUnixTime = System.currentTimeMillis();
-//                        if(selectedUnixTimeStamp > currentUnixTime) {
-                            editText.setText(hourOfDay + ":" + minute);
-//                        } else {
-//                            Toast.makeText(DetailActivity.this, "Please choose a time to come", Toast.LENGTH_SHORT).show();
-//                        }
+                        Log.i("Coba", selectedUnixTimeStamp/1000 + " | " + currentUnixTime/1000);
+                        if(selectedUnixTimeStamp > currentUnixTime) {
+                            editText.setText(getTime(hourOfDay, minute));
+                        } else {
+                            Toast.makeText(DetailActivity.this, "Please choose a time to come", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 }, hour, minute, false);
         timePickerDialog.show();
@@ -852,6 +848,13 @@ public class DetailActivity extends AppCompatActivity implements OnChartValueSel
         long customUnixTime = currentUnixTime + (plush*1000);
         Date date = new Date(customUnixTime);
         return dateFormat.format(date);
+    }
+
+    private String getTime(int hr,int min) {
+        Time tme = new Time(hr,min,0);//seconds by default set to zero
+        Format formatter;
+        formatter = new SimpleDateFormat("h:mm a");
+        return formatter.format(tme);
     }
 
     /**
